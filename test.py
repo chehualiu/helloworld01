@@ -2,6 +2,10 @@ print('test')
 
 # git config --global user.email "chehua@gmail.com"
 
+# t enables Git to use file Keychain.app to store username and password and to retrieve the passphrase to your private SSH key from the keychain.
+# For Windows use:
+# git config --global credential.helper wincred
+
 # git init
 # git add .  # add everything.
 # git status  show tracked and untracked files.
