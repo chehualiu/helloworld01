@@ -1,0 +1,36 @@
+<html>
+<head>
+    <script>
+        function refreshImage() {
+            var imageElement = document.getElementById('image');
+            imageElement.src = '/static/image.png?' + new Date().getTime();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshImage();
+            setInterval(refreshImage, 30000); // Refresh every 10 seconds
+        });
+
+        function startGeneration() {
+            fetch('/start-generation', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data.message));
+        }
+
+        function stopGeneration() {
+            fetch('/stop-generation', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data.message));
+        }
+
+    </script>
+</head>
+<body>
+
+    <button onclick="startGeneration()">Start Generation</button>
+    <button onclick="stopGeneration()">Stop Generation</button>
+    <br>
+
+    <img id="image" src="" alt="Generated Image">
+</body>
+</html>
