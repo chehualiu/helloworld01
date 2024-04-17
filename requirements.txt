@@ -5,3 +5,4 @@ pandas==2.2.1
 pytdx==1.72
 requests==2.31.0
 urllib3==2.2.1
+mplfinance
