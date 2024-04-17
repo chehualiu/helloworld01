@@ -3,8 +3,8 @@ import numpy as np
 import warnings
 import time, requests
 import pandas as pd
-import winsound
-from playsound import playsound
+# import winsound
+# from playsound import playsound
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 # from collections import deque
@@ -459,16 +459,6 @@ def original_strings(x):
         return ', '.join(x)
     else:
         return x.iloc[0]
-
-def playalarm(sig=1):
-    pass
-    return
-    # if sig==1:
-    #     playsound('D:\\mp3\\effect\\morning.mp3')
-    # elif sig==-1:
-    #     playsound('D:\\mp3\\effect\\swoosh.mp3')
-    # else:
-    #     print('playalarm no para')
 
 def cal_right_price(input_stock_data, type='前复权'):
     """
@@ -975,12 +965,12 @@ def processSingleStock1min(code,name,api,Exapi):
                     print('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部左侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                           '  止损价:' + str(round(low1,3)) + ' 止损%:' + str(round(low1/df_1min['close'].values[-1]*100-100,2)) + '%')
                     flag = -1
-                    # playalarm()
+
                 elif cnow<low2 and cr2>low2 and df_1min['close'].values[-1]<df_1min['ma10'].values[-1]:
                     print('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部右侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                                    '  止损价:' + str(round(low2,3)) + ' 止损%:' + str(round(low2/df_1min['close'].values[-1]*100-100,2)) + '%')
                     flag = -1
-                    # playalarm()
+
                 else:
                     return
             elif idxnow==high0idx and idxnow-df_1min[:-1]['close'].argmax()>=10 and idxnow-low0idx>25 and cnow>df_1min[:-1]['close'].max(): # 刚创新高
@@ -989,7 +979,7 @@ def processSingleStock1min(code,name,api,Exapi):
                 print('UP '+code + ' '+ name  + ' ' + ' 上升中刚创新高 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                       '  止损价:' + str(round(low1,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/low1*100-100,2)) + '%')
                 flag = 2
-                playalarm(1)
+
             else:
                 return
         else:   #  high0idx<low0idx 下跌中
@@ -1001,12 +991,12 @@ def processSingleStock1min(code,name,api,Exapi):
                     print('UP ' +code + ' '+ name  + ' ' + ' 突破底部左侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                           '  止损价:' + str(round(high1,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/high1*100-100,2)) + '%')
                     flag = 1
-                    playalarm(1)
+
                 elif cnow>high2 and cr2<high2 and df_1min['close'].values[-1]>df_1min['ma10'].values[-1]:
                     print('UP ' +code + ' '+ name  + ' ' + ' 突破底部右侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                                    '  止损价:' + str(round(high2,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/high2*100-100,2)) + '%')
                     flag = 1
-                    playalarm(1)
+
                 else:
                     return
             elif idxnow==low0idx and idxnow-df_1min[:-1]['close'].argmin()>=10 and idxnow-high0idx>25 and cnow<df_1min[:-1]['close'].min(): # 刚创新低
@@ -1015,7 +1005,7 @@ def processSingleStock1min(code,name,api,Exapi):
                 print('DOWN ' +code + ' '+ name  + ' ' + ' 下跌中刚创新低 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                       '  止损价:' + str(round(high1,3)) + ' 止损%:' + str(round(high1/df_1min['close'].values[-1]*100-100,2)) + '%')
                 flag = -2
-                # playalarm(-1)
+
             else:
                 return
 
@@ -1072,7 +1062,7 @@ def plotAllzjlx():
         requests.get(msgURL)
         msgURL = 'http://wx.xtuis.cn/bWwwuJjL3EojjNJDwool6kfeI.send?text=' + msg
         requests.get(msgURL)
-        playalarm(1)
+
     if df_hs300['dw'].values[-1]==True:
         msg = 'UP 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))
         print('DOWN 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
@@ -1081,7 +1071,7 @@ def plotAllzjlx():
         requests.get(msgURL)
         msgURL = 'http://wx.xtuis.cn/bWwwuJjL3EojjNJDwool6kfeI.send?text=' + msg
         requests.get(msgURL)
-        playalarm(-1)
+
     df_hs300['up'] = df_hs300.apply(lambda x: x.close if x.up==True else np.nan, axis=1)
     df_hs300['dw'] = df_hs300.apply(lambda x: x.close if x.dw==True else np.nan, axis=1)
 
@@ -1106,11 +1096,11 @@ def plotAllzjlx():
     if df_dp['up'].values[-1]==True:
         print('UP 999999 沪市大盘' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
-        playalarm(1)
+
     if df_dp['dw'].values[-1]==True:
         print('DOWN 999999 沪市大盘' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
-        playalarm(-1)
+
     df_dp['up'] = df_dp.apply(lambda x: x.close if x.up==True else np.nan, axis=1)
     df_dp['dw'] = df_dp.apply(lambda x: x.close if x.dw==True else np.nan, axis=1)
     if len(df_dp)<240:
