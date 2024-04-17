@@ -7,7 +7,7 @@ import winsound
 from playsound import playsound
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-from collections import deque
+# from collections import deque
 from mplfinance.utils import *
 
 from pytdx.hq import TdxHq_API
@@ -15,9 +15,9 @@ from pytdx.exhq import TdxExHq_API
 import utils.tdxExhq_config as conf
 from pytdx.params import TDXParams
 from pytdx.reader import TdxDailyBarReader,TdxExHqDailyBarReader
-from utils.MyTT import *
-from scipy.stats import linregress
-from scipy.signal import argrelextrema
+# from utils.MyTT import *
+# from scipy.stats import linregress
+# from scipy.signal import argrelextrema
 
 # 增加上涨家数 880005的分钟线到 ETF300子图。
 # 删除 getRTtickByCode
@@ -41,56 +41,33 @@ warnings.filterwarnings('ignore')
 np.random.seed(42)
 
 
-import logging
-# 创建logger对象
-logger = logging.getLogger('mylogger')
-# 设置日志等级
-logger.setLevel(logging.DEBUG)
-# 追加写入文件a ，设置utf-8编码防止中文写入乱码
-test_log = logging.FileHandler('logs\\持续监控_v1.9_'+datetime.datetime.now().strftime('%Y%m%d')+ \
-                               '.log','a',encoding='utf-8')
-# 向文件输出的日志级别
-test_log.setLevel(logging.INFO)
-# 向文件输出的日志信息格式
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message).300s',datefmt='%m-%d %H:%M:%S')
-# formatter = logging.Formatter('%(asctime)s - %(filename)s - %(levelname)s - %(message)s')
-test_log.setFormatter(formatter)
-
-console = logging.StreamHandler()
-console.setLevel(logging.DEBUG)
-console.setFormatter(formatter)
-
-# 加载文件到logger对象中
-logger.addHandler(test_log)
-logger.addHandler(console)
-
 def TestConnection(Api, type, ip, port):
     if type == 'HQ':
         try:
             is_connect = Api.connect(ip, port)
         except Exception as e:
-            logger.error('Failed to connect to HQ!')
+            print('Failed to connect to HQ!')
             exit(0)
 
         if is_connect is False:  # 失败了返回False，成功了返回地址
-            logger.error('HQ is_connect is False!')
+            print('HQ is_connect is False!')
             return False
         else:
-            logger.info('HQ is connected!')
+            print('HQ is connected!')
             return True
 
     elif type=='ExHQ':
         try:
             is_connect = Api.connect(ip, port)
         except Exception as e:
-            logger.error('Failed to connect to Ext HQ!')
+            print('Failed to connect to Ext HQ!')
             exit(0)
 
         if is_connect is False:  # 失败了返回False，成功了返回地址
-            logger.error('ExHQ is_connect is False!')
+            print('ExHQ is_connect is False!')
             return False
         else:
-            logger.info('ExHQ is connected')
+            print('ExHQ is connected')
             return True
 
 class tdxData(object):
@@ -297,158 +274,6 @@ class tdxData(object):
             df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
             return df_k
 
-        #
-        #
-        # # 计算牛熊指标
-        # def _Calc_func(self, x_df):
-        #     '''
-        #     输入为df index-date column-turnovet_rate_f|close|pct_chg
-        #     ============
-        #     return series/pd index-date valus-牛熊指标 kernel_n
-        #     '''
-        #     df = x_df.copy()
-        #     periods = self.periods  # 获取计算周期
-        #     if not isinstance(periods, list):
-        #         periods = [periods]
-        #
-        #     # 计算牛熊指标
-        #     series_temp = []
-        #     for n in periods:
-        #         turnover_ma = df['turnover_rate_f'].rolling(n).mean()
-        #         std = df['pct_chg'].rolling(n).std(ddof=0)
-        #         kernel_factor = std/turnover_ma
-        #         kernel_factor.name = 'kernel_'+str(n)
-        #         series_temp.append(kernel_factor)
-        #
-        #     if len(series_temp) == 1:
-        #         return kernel_factor
-        #
-        #     else:
-        #         return pd.concat(series_temp, axis=1)
-        #
-        # # 获取信号
-        # @property
-        # def get_singal(self):
-        #     '''  return df index-date columns-close|pct_chg|kernel_n|turnover_rate_f    '''
-        #     data = self.get_data  # 获取数据
-        #     singal_df = self._Calc_func(data)  # 计算数据
-        #     data = data.join(singal_df)
-        #
-        #     return data
-        #
-        # # ---------------------------------------------------------------------
-        # #                   信号指标未来收益相关分析函数
-        # # ---------------------------------------------------------------------
-        #
-        # # 计算未来收益
-        # def _Cal_forward_ret(self, x_df, singal_periods):
-        #     '''
-        #     df为信号数据 index-date columns-close|pct_chg|kernel_n
-        #     singal_periods int
-        #     forwart_n 需要获取未来n日收益的list
-        #     ===========
-        #     return df
-        #
-        #     index-date colums kernel_n|未来x日收益|pct_chg
-        #     '''
-        #
-        #     forward_n = self.forward_n  # 获取N日未来收益
-        #
-        #     df = x_df[['close', 'pct_chg', 'kernel_'+str(singal_periods)]].copy()
-        #
-        #     # 获取指数数据
-        #     df['未来1日收益率'] = df['pct_chg'].shift(-1)  # next_ret
-        #
-        #     for n in forward_n:
-        #         col = '未来{}日收益率'.format(n)
-        #         df[col] = df['close'].pct_change(n).shift(-n)  # next_ret_n
-        #
-        #     df = df.drop('close', axis=1)  # 丢弃不需要的列
-        #
-        #     return df
-        #
-        # # 信号分段对应的收益率
-        #
-        # def forward_distribution_plot(self, singal_periods, bins=50):
-        #     '''
-        #     bins 分组
-        #     =============
-        #     return 图表
-        #     '''
-        #
-        #     data = self.get_singal  # 获取信号数据
-        #     forward_df = self._Cal_forward_ret(data, singal_periods)  # 获取未来收益
-        #     slice_arr = pd.cut(
-        #         forward_df['kernel_'+str(singal_periods)], bins=bins)  # 信号分为组
-        #
-        #     forward_df['barrel'] = slice_arr
-        #
-        #     group_ret = [x for x in forward_df.columns if x.find(
-        #         '日收益率') != -1]  # 获取未来收益列
-        #
-        #     list_size = len(group_ret)  # 子图个数
-        #
-        #     # 画图
-        #     f, axarr = plt.subplots(list_size, figsize=(18, 15))  # sharex=True 画子图
-        #     f.suptitle(' 信号对应收益分布')  # 设置总标题
-        #
-        #     # 设置子图间隔等
-        #     f.subplots_adjust(top=0.92, bottom=0.08, left=0.10, right=0.95, hspace=0.65,
-        #                       wspace=0.35)
-        #
-        #     for i in range(list_size):
-        #
-        #         ret_series = forward_df.groupby('barrel')[group_ret[i]].mean()
-        #         x = ret_series.index.astype('str').tolist()
-        #
-        #         axarr[i].bar(x, ret_series.values)  # 画子图
-        #         axarr[i].set_title(group_ret[i])  # 设置子图名称
-        #         axarr[i].set_xticklabels(x, rotation=90)  # 设置子图刻度标签及标签旋转
-        #
-        #     plt.show()
-        #
-        # # 画分信号位数与收益的相关系数
-        # def QuantReg_plot(self, forward_ret_name, singal_periods):
-        #     '''
-        #     forward_ret_name 需要比较的未来收益的名称
-        #     '''
-        #     data = self.get_singal  # 获取信号数据
-        #
-        #     forward_df = self._Cal_forward_ret(data, singal_periods)  # 获取未来收益
-        #
-        #     x = forward_ret_name  # 设置未来收益名称
-        #     traget = 'kernel_'+str(singal_periods)+'~'+x
-        #
-        #     mod = smf.quantreg(traget, forward_df)
-        #     res = mod.fit(q=.5)
-        #     print(res.summary())
-        #
-        #     quantiles = np.arange(.05, .96, .1)
-        #
-        #     def fit_model(q):
-        #         res = mod.fit(q=q)
-        #         # conf_int为置信区间
-        #         return [q, res.params['Intercept'], res.params[x]] + \
-        #                res.conf_int().loc[x].tolist()
-        #
-        #     models = [fit_model(q_i) for q_i in quantiles]
-        #     models_df = pd.DataFrame(
-        #         models, columns=['quantiles', 'Intercept', x, 'lb', 'ub'])
-        #
-        #     n = models_df.shape[0]
-        #
-        #     plt.figure(figsize=(18, 8))
-        #     p1 = plt.plot(models_df['quantiles'], models_df[x],
-        #                   color='red', label='Quantile Reg.')
-        #     p2 = plt.plot(models_df['quantiles'], models_df['ub'],
-        #                   linestyle='dotted', color='black')
-        #     p3 = plt.plot(models_df['quantiles'], models_df['lb'],
-        #                   linestyle='dotted', color='black')
-        #
-        #     plt.ylabel(r'$\beta_{RETURNS}$')
-        #     plt.xlabel('信号分位数')
-        #     plt.legend()
-        #     plt.show()
 
     @property
     def get_data(self):
@@ -696,7 +521,7 @@ def load_file(path, file,start_time,end_time):
         df[['open', 'close', 'high', 'low']] = cal_right_price(df, type='后复权')
         return df
     except:
-        logger.error('load data file failed')
+        print('load data file failed')
         return pd.DataFrame()
 
 def getNorthzjlx():
@@ -1016,7 +841,7 @@ def getTdxRealtime(api, market, code):
         # date, close, amount, vol,high,low,open
         return [datetime.datetime.now().strftime('%Y-%m-%d'), close, amount, vol,high,low,open, preclose]
     else:
-        logger.error(str(market)+' '+ code+ " no data.")
+        print(str(market)+' '+ code+ " no data.")
         return ['',0,0,0,0,0,0,0]
 
 def pullRealtimeData(code):
@@ -1031,7 +856,7 @@ def pullRealtimeData(code):
     elif code[:6].lower()=='sz.399':
         code = "0." + code[2:].replace('.','')
     else:
-        logger.error('code not accepted '+  code)
+        print('code not accepted '+  code)
 
     url = 'http://push2.eastmoney.com/api/qt/stock/get?ut=fa5fd1943c7b386f172d6893dbfba10b&invt=2&fltt=2&fields=f43,f44,f45,f46,f47,f48,f60,f170&secid=' + \
           code + '&cb=jQuery112404973692212841755_1642991317570&_=1642991317571'
@@ -1061,11 +886,11 @@ def pullRealtimeData(code):
                      'volume': volume, 'amount': amount, 'turn': turn, 'preclose':preclose,
                      'pctChg': pctChg}]
         else:
-            logger.error('sEM_error ' +res.text)
+            print('sEM_error ' +res.text)
             return []
 
     except requests.exceptions.RequestException:
-        logger.error('sina_error '+code)
+        print('sina_error '+code)
         return []
 
 def getStk1minV2(code, name, api, Exapi):
@@ -1110,8 +935,8 @@ def getStk1minV2(code, name, api, Exapi):
         return data
 
     except Exception as e:
-        logger.error('exception msg: '+ str(e))
-        logger.error(' -----  exception, restart main ----- ')
+        print('exception msg: '+ str(e))
+        print(' -----  exception, restart main ----- ')
         time.sleep(5)
         main()
 
@@ -1123,7 +948,7 @@ def processSingleStock1min(code,name,api,Exapi):
         # df_1min = getStk1min(code, name, api,Exapi)
         df_1min = getStk1minV2(code, name, api,Exapi)
         if len(df_1min) == 0:
-            logger.error(code+' '+name +' TdxRealtime failed.')
+            print(code+' '+name +' TdxRealtime failed.')
             return
 
         df_1min['ma10'] = df_1min['close'].rolling(10).mean()
@@ -1152,12 +977,12 @@ def processSingleStock1min(code,name,api,Exapi):
                 low1 = df_1min[:high0idx][df_1min["close"]==df_1min['min']]['close'].max() # 低点左侧高点
 
                 if cnow<low1 and cr2>low1 and df_1min['close'].values[-1]<df_1min['ma10'].values[-1]:  # cnow<lowThreashold and cr2>lowThreasholdr2 and
-                    logger.warning('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部左侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                    print('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部左侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                           '  止损价:' + str(round(low1,3)) + ' 止损%:' + str(round(low1/df_1min['close'].values[-1]*100-100,2)) + '%')
                     flag = -1
                     # playalarm()
                 elif cnow<low2 and cr2>low2 and df_1min['close'].values[-1]<df_1min['ma10'].values[-1]:
-                    logger.warning('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部右侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                    print('DOWN ' +code + ' '+ name + ' ' + ' 跌破顶部右侧低点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                                    '  止损价:' + str(round(low2,3)) + ' 止损%:' + str(round(low2/df_1min['close'].values[-1]*100-100,2)) + '%')
                     flag = -1
                     # playalarm()
@@ -1166,7 +991,7 @@ def processSingleStock1min(code,name,api,Exapi):
             elif idxnow==high0idx and idxnow-df_1min[:-1]['close'].argmax()>=10 and idxnow-low0idx>25 and cnow>df_1min[:-1]['close'].max(): # 刚创新高
                 high1idx = df_1min[:-1]['close'].argmax()
                 low1 = df_1min[high1idx:]['close'].min()
-                logger.warning('UP '+code + ' '+ name  + ' ' + ' 上升中刚创新高 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                print('UP '+code + ' '+ name  + ' ' + ' 上升中刚创新高 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                       '  止损价:' + str(round(low1,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/low1*100-100,2)) + '%')
                 flag = 2
                 playalarm(1)
@@ -1178,12 +1003,12 @@ def processSingleStock1min(code,name,api,Exapi):
                 high1 = df_1min[:low0idx][df_1min["close"]==df_1min['max']]['close'].min() # 低点左侧高点
 
                 if cnow>high1 and cr2<high1 and df_1min['close'].values[-1]>df_1min['ma10'].values[-1]:  # cnow>highThreashold and cr2<highThreasholdr2
-                    logger.warning('UP ' +code + ' '+ name  + ' ' + ' 突破底部左侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                    print('UP ' +code + ' '+ name  + ' ' + ' 突破底部左侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                           '  止损价:' + str(round(high1,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/high1*100-100,2)) + '%')
                     flag = 1
                     playalarm(1)
                 elif cnow>high2 and cr2<high2 and df_1min['close'].values[-1]>df_1min['ma10'].values[-1]:
-                    logger.warning('UP ' +code + ' '+ name  + ' ' + ' 突破底部右侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                    print('UP ' +code + ' '+ name  + ' ' + ' 突破底部右侧高点 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                                    '  止损价:' + str(round(high2,3)) + ' 止损%:' + str(round(df_1min['close'].values[-1]/high2*100-100,2)) + '%')
                     flag = 1
                     playalarm(1)
@@ -1192,7 +1017,7 @@ def processSingleStock1min(code,name,api,Exapi):
             elif idxnow==low0idx and idxnow-df_1min[:-1]['close'].argmin()>=10 and idxnow-high0idx>25 and cnow<df_1min[:-1]['close'].min(): # 刚创新低
                 low1idx = df_1min[:-1]['close'].argmin()
                 high1 = df_1min[low1idx:]['close'].max()
-                logger.warning('DOWN ' +code + ' '+ name  + ' ' + ' 下跌中刚创新低 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
+                print('DOWN ' +code + ' '+ name  + ' ' + ' 下跌中刚创新低 -- '+  ' close '+  str(round(df_1min['close'].values[-1],3))+ \
                       '  止损价:' + str(round(high1,3)) + ' 止损%:' + str(round(high1/df_1min['close'].values[-1]*100-100,2)) + '%')
                 flag = -2
                 # playalarm(-1)
@@ -1202,7 +1027,7 @@ def processSingleStock1min(code,name,api,Exapi):
         return
 
     except:
-        logger.error('processing '+ code+' '+ name+ ' error')
+        print('processing '+ code+' '+ name+ ' error')
         return
 
 def plotAllzjlx():
@@ -1212,7 +1037,7 @@ def plotAllzjlx():
     hs300_zjlx = getHS300zjlx()  # zjlxdelta
     hs300_index,hs_preclose = getETFindex('510300')  #   close
     if len(hs300_index) == 0:
-        logger.error('failed to get 300ETF df, skipped')
+        print('failed to get 300ETF df, skipped')
         return
     dp_zjlx = MINgetZjlxDP()   # zjlxdelta
     dp_index, dp_preclose = MINgetDPindex()  # close
@@ -1246,7 +1071,7 @@ def plotAllzjlx():
 
     if df_hs300['up'].values[-1]==True:
         msg = 'UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))
-        logger.warning('UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
+        print('UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         msgURL = 'http://wx.xtuis.cn/XfhmghWTRzitW6RHalZc8AzN5.send?text=' + msg
         requests.get(msgURL)
@@ -1255,7 +1080,7 @@ def plotAllzjlx():
         playalarm(1)
     if df_hs300['dw'].values[-1]==True:
         msg = 'UP 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))
-        logger.warning('DOWN 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
+        print('DOWN 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         msgURL = 'http://wx.xtuis.cn/XfhmghWTRzitW6RHalZc8AzN5.send?text=' + msg
         requests.get(msgURL)
@@ -1284,11 +1109,11 @@ def plotAllzjlx():
     df_dp.loc[(df_dp['cp30']>0.7) & (df_dp['cp60']>0.7) &  (df_dp['cabovem10']==False) & \
               (df_dp['close']<df_dp['close'].shift(1)), 'dw'] = True
     if df_dp['up'].values[-1]==True:
-        logger.warning('UP 999999 沪市大盘' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
+        print('UP 999999 沪市大盘' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         playalarm(1)
     if df_dp['dw'].values[-1]==True:
-        logger.warning('DOWN 999999 沪市大盘' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
+        print('DOWN 999999 沪市大盘' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         playalarm(-1)
     df_dp['up'] = df_dp.apply(lambda x: x.close if x.up==True else np.nan, axis=1)
@@ -1725,56 +1550,6 @@ def calcBS(data):
 
     return B.values.tolist(),S.values.tolist()
 
-
-    # df['pctR10'] = df['close'] / df['close'].shift(10) - 1
-    # df['pctR10MA5'] = df['pctR10'].rolling(5).mean()
-    #
-    # df['dd'] = df['low'] < df['low'].shift(1)
-    # df['gd'] = df['high'] > df['high'].shift(1)
-    # df['pctR10R1'] = df['pctR10'].shift(1)
-    # df['pctR10LLV20'] = df['pctR10'].rolling(20).min()
-    # df['pctR10HHV20'] = df['pctR10'].rolling(20).max()
-    # df['1buy'] = df.apply(lambda x: True if x.dd and x.pctR10<x.pctR10LLV20*0.7 and x.pctR10>x.pctR10R1 else False, axis=1)
-    # df['1sell'] = df.apply(lambda x: True if x.gd and x.pctR10>x.pctR10HHV20*0.7 and x.pctR10<x.pctR10R1 else False, axis=1)
-    #
-    # df['HHV9'] = df['high'].rolling(9).max()
-    # df['LLV9'] = df['low'].rolling(9).min()
-    # df['RSV'] = df.apply(lambda x: (x.close - x.LLV9) / (x.HHV9 - x.LLV9) * 100, axis=1)
-    # df['K'] = talib.SMA(df['RSV'], 3)
-    # df['D'] = talib.SMA(df['K'], 3)
-    # df['J'] = df.apply(lambda x: x.K * 3 - x.D * 2, axis=1)
-    # df['CP20'] = (df['close'] - df['low'].rolling(20).min()) / (
-    #             df['high'].rolling(20).max() - df['low'].rolling(20).min())
-    #
-    # df['up1'] = df['up2'] = df['up3'] = False
-    # df['dw1'] = df['dw2'] = df['dw3'] = False
-    #
-    # df['KR'],df['DR'] = talib.STOCHF(df['high'].values, df['low'].values, df['close'].values, fastk_period=5, fastd_period=3, fastd_matype=0)
-    # df.loc[(df['J'] < 20) & (df['pctR10MA5'] > df['pctR10MA5'].shift(1)) & (df['pctR10'] > df['pctR10MA5']), 'up1'] = True
-    # df.loc[(df['J'] > 80) & (df['pctR10MA5'] < df['pctR10MA5'].shift(1)) & (df['pctR10'] < df['pctR10MA5']), 'dw1'] = True
-    # df.loc[(df['KR'].shift(1) > df['DR'].shift(1)) & (df['KR'].shift(1) < 20), 'up2'] = True
-    #
-    # df.loc[(df['CP20'] < 0.1) & (df['CP20'] > 0) & (df['pctR10'] > df['pctR10MA5']), 'up3'] = True
-    #
-    # df['B'] = df['S'] = np.nan
-    # df.loc[df['up1'] | df['up2'] | df['up3'] | df['1buy'], 'B'] = df['close']
-    # df.loc[df['dw1'] | df['1sell'], 'S'] = df['close']
-
-    # df['ma5'] = df['close'].rolling(5).mean()
-    # df['ma10'] = df['close'].rolling(10).mean()
-    # df['ma20'] = df['close'].rolling(20).mean()
-    # df['ma30'] = df['close'].rolling(30).mean()
-    # df['ma60'] = df['close'].rolling(60).mean()
-    # df['m5m10'] = df['ma5'] >= df['ma10']
-    # df['m10m20'] = df['ma10'] >= df['ma20']
-    # df['m20m30'] = df['ma20'] >= df['ma30']
-    # df['m30m60'] = df['ma30'] >= df['ma60']
-    # for i in ['m5m10', 'm10m20', 'm20m30', 'm30m60']:
-    #     df[i] = df[i].apply(lambda x: 25 if x == True else 0)
-    # df1 = df[['m5m10', 'm10m20', 'm20m30', 'm30m60']]
-    # df['score'] = df1.sum(axis=1).tolist()
-
-    # return df[['datetime','B','S']]
 
 def calcScore(data):
     pass
@@ -3215,7 +2990,7 @@ def main():
     global api, Exapi, factor, dayr1,png_dict
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
-        logger.info('waiting market, sleep 40s')
+        print('waiting market, sleep 40s')
         time.sleep(40)
 
     try:
@@ -3229,14 +3004,14 @@ def main():
         Exapi = TdxExHq_API(heartbeat=True)
 
         if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport )==False:
-            logger.error('connection to TDX server not available')
+            print('connection to TDX server not available')
         if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-            logger.error('connection to Ex TDX server not available')
+            print('connection to Ex TDX server not available')
 
         while (time.strftime("%H%M", time.localtime())>='0930' and time.strftime("%H%M", time.localtime())<='1502'):
 
             if (time.strftime("%H%M", time.localtime())>'1130' and time.strftime("%H%M", time.localtime())<'1300'):
-                logger.info('sleep 60s')
+                print('sleep 60s')
                 time.sleep(60)
             else:
                 try:
@@ -3245,14 +3020,14 @@ def main():
                     png_dict = {}
                 drawAllCCBs2min5B()
                 drawAllCCBmin1A()
-                drawAllCCBmin1C()
+                # drawAllCCBmin1C()
                 # drawAllCCBmin1B()
                 plotAllzjlx()
                 time.sleep(20)
 
         drawAllCCBs2min5B()
         drawAllCCBmin1A()
-        drawAllCCBmin1C()
+        # drawAllCCBmin1C()
         # drawAllCCBmin1B()
         plotAllzjlx()
 
@@ -3260,8 +3035,8 @@ def main():
         Exapi.close()
         return
     except Exception as e: # work on python 3.x
-        logger.error('exception msg: '+ str(e))
-        logger.error(' *****  exception, restart main ***** ')
+        print('exception msg: '+ str(e))
+        print(' *****  exception, restart main ***** ')
         time.sleep(5)
         main()
 
@@ -3269,8 +3044,8 @@ def main():
 if __name__ == '__main__':
 
     prog_start = time.time()
-    logger.info('-------------------------------------------')
-    logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
+    print('-------------------------------------------')
+    print('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
 
     etf_ccb_dict = {'上证50':'UC050', '沪深300':'UC300','中证500':'UC500','创业板50':'UC915'}
     etf_dict = {'上证50':'zs000016','沪深300':'zs000300','中证500':'zs000905','创业板50':'399673'}
@@ -3304,11 +3079,11 @@ if __name__ == '__main__':
 
     api = TdxHq_API(heartbeat=True)
     if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport) == False: # or \
-        logger.error('connection to TDX server not available')
+        print('connection to TDX server not available')
 
     Exapi = TdxExHq_API(heartbeat=True)
     if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-        logger.error('connection to EXHQ server not available')
+        print('connection to EXHQ server not available')
 
     ttt = pd.DataFrame(etfData(api, Exapi,'510050', '上证50', 'BK0611','UC050',backset, 240, 9).api.get_security_bars(8,1, '510050', 0, 240))
     today = ttt['datetime'].values[-1][:10]
@@ -3333,6 +3108,6 @@ if __name__ == '__main__':
     Exapi.close()
 
     time_end = time.time()
-    logger.info('-------------------------------------------')
-    logger.info(f'Job completed!!!  All time costed: {(time_end - prog_start):.0f}秒')
+    print('-------------------------------------------')
+    print(f'Job completed!!!  All time costed: {(time_end - prog_start):.0f}秒')
 
