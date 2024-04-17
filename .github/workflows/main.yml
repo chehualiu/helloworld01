@@ -26,6 +26,6 @@ jobs:
     - name: (Upload) generated file
       uses: actions/upload-artifact@v4
       with:
-        name: D:\build\monitor_v2.exe
-        path: monitor_v2.exe
+        name: monitor_v2.exe
+        path: D:\build\
         overwrite: true
