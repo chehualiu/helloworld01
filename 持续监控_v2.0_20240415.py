@@ -15,12 +15,7 @@ from pytdx.exhq import TdxExHq_API
 import utils.tdxExhq_config as conf
 from pytdx.params import TDXParams
 from pytdx.reader import TdxDailyBarReader,TdxExHqDailyBarReader
-# from utils.MyTT import *
-# from scipy.stats import linregress
-# from scipy.signal import argrelextrema
 
-# 增加上涨家数 880005的分钟线到 ETF300子图。
-# 删除 getRTtickByCode
 
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -2826,12 +2821,6 @@ def myStrategy(data, gap_threshold, cutloss=-0.005, cutprofit=0.01):
 def drawAllCCBs2min5B():
     global backset, gaphist_pct,bins,png_dict
 
-    # try:
-    #     png_dict = getMyOptions()
-    # except:
-    #     png_dict = {}
-
-    # backset = 0
     trade_rate = 1/10000 # 手续费
 
     # etf_color_dict = {'上证50':'darkorange', '沪深300':'green','中证500':'royalblue','创业板50':'lightcoral'}
@@ -2933,15 +2922,7 @@ def drawAllCCBs2min5B():
         x2.add_collection(ccbbar_segments)
         x2.plot(df_pivot.index, df_pivot[('ccbma5', k)], label='ma5', linewidth=0.9, linestyle='dotted', color='green')
         x2.plot(df_pivot.index, df_pivot[('ccbma20', k)], label='ma20', linewidth=0.6, linestyle='-.', color='green')
-        # x2.plot(df_pivot.index, df_pivot[('ccbRenkoM10', k)], linewidth=0.5, linestyle='-', color='blue')
-        # yl, yh = x2.get_ylim()
-        # for index, row in df_pivot.iterrows():
-        #     x2.axvline(x=index, ymin=(row[('ccbl',k)]-yl)/(yh-yl), ymax=(row[('ccbh',k)]-yl)/(yh-yl), color='blue',linewidth=0.4)#linestyles='dashed',
-        # x2.vlines(df_pivot.index, df_pivot[('ccbl',k)], df_pivot[('ccbh',k)], colors='blue', linewidth=0.4,alpha=1.)
-        # x2.fill_between(df_pivot.index, df_pivot[('ccbl', k)], df_pivot[('ccbh', k)], color='blue', zorder=-26, alpha=0.2)
 
-        # ax2.plot(df_single.index, df_single['ccbm5_ma'], label='ccbm5ma', linewidth=0.5, linestyle='dotted',color='blue')
-        # x2.plot(df_pivot.index, df_pivot[('ccbm30_ma',k)], label='ccbm30ma', linewidth=0.5, linestyle='-.',color='blue')
         x2.set_yticks([])
 
         x3 = x.twinx()
@@ -2951,25 +2932,6 @@ def drawAllCCBs2min5B():
         x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=64, c='red',alpha=0.7)
         x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=64, c='green',alpha=0.7)
         x3.set_ylim(-2, 2)
-        # x3.hlines(0,xmin=df_pivot.index.min(), xmax=df_pivot.index.max(),color='green')
-        # x3.scatter(df_pivot.index,df_pivot[('gapdw',k)], s=4, c='g',marker='.',alpha=0.8)
-
-        # x4 = x.twinx()
-        # x4.plot(df_pivot.index,df_pivot[('cm20upCnt5',k)],label='cm20upCnt5', linewidth=3, color='red',alpha=0.25,zorder=-10)
-        # # x4.plot(df_pivot.index,df_pivot[('cm20up5cnt20',k)],label='cm20up5cnt20', linewidth=2, color='red',alpha=0.3,zorder=-10)
-        # # x4.plot(df_pivot.index,df_pivot[('cm20dw5cnt20',k)],label='cm20dw5cnt20', linewidth=2, color='green',alpha=0.3,zorder=-10)
-        # # x4.hlines(0, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='black')
-        # x4.set_ylim(-0.5, 5.5)
-        # x4.set_yticks([])
-
-        # x5 = x.twinx()
-        # x5.plot(df_pivot.index,df_pivot[('score',k)], linewidth=0.5, color='violet',zorder=-10)
-        # # x5.set_ylim(-3, 3)
-        # x5.set_yticks([])
-
-        # x.legend(loc='upper left')
-        # x2.legend(loc='center left')
-        # x3.legend(loc='lower left')
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -3020,14 +2982,14 @@ def main():
                     png_dict = {}
                 drawAllCCBs2min5B()
                 drawAllCCBmin1A()
-                # drawAllCCBmin1C()
+                drawAllCCBmin1C()
                 # drawAllCCBmin1B()
                 plotAllzjlx()
                 time.sleep(20)
 
         drawAllCCBs2min5B()
         drawAllCCBmin1A()
-        # drawAllCCBmin1C()
+        drawAllCCBmin1C()
         # drawAllCCBmin1B()
         plotAllzjlx()
 
