@@ -14,6 +14,7 @@
 *.vscode-test-results-summary.json.gz.bak
 *.vscode-test-results-summary.json.gz.bak.bak
 /.vscode
+.idea
 /.idea
 /__pycache__
 /build
