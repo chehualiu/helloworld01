@@ -21,7 +21,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Build Windows EXE
-      run: pyinstaller --onefile 持续监控_v2.0_20240415.py --name="monitor_v2.1.exe" --distpath="D:\build"
+      run: pyinstaller --onefile monitor_v2.1.py --name="monitor_v2.1.exe" --distpath="D:\build"
 
     - name: (Upload) generated file
       uses: actions/upload-artifact@v4
