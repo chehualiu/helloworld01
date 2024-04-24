@@ -26,3 +26,4 @@
 *.exe
 *.msi
 
+.idea
