@@ -1572,7 +1572,8 @@ def drawAllCCBmin1A():
         x5.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.7,zorder=-30)
         x5.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x5.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
-        x5.hlines(0, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='k',linewidth=0.5,alpha=0.5,zorder=-25)
+        x5.hlines(-1, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
+        x5.hlines(1, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
         x5.set_ylim(-2,2)
 
         x6 = x.twinx()

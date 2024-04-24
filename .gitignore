@@ -1,5 +1,5 @@
 /output
-/.idea
+.idea
 *.cfg
 *.log
 *.pyc
@@ -14,7 +14,7 @@
 *.vscode-test-results-summary.json.gz.bak
 *.vscode-test-results-summary.json.gz.bak.bak
 /.vscode
-.idea
+
 /.idea
 /__pycache__
 /build
@@ -26,3 +26,4 @@
 /tests/__pycache__
 *.exe
 *.msi
+.idea
