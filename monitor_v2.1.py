@@ -1524,7 +1524,7 @@ def drawAllCCBmin1A():
         df_all = pd.concat([df_all, df_single])
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl', 'close', 'high', 'low','open',
-               'gap','gapSig','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up','dw','up2','dw2'], dropna=False)
+               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up','dw','up2','dw2'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
     df_pivot['time'] = df_pivot[('datetime','')].apply(lambda x: x.split(' ')[1])
@@ -1555,6 +1555,7 @@ def drawAllCCBmin1A():
         x.add_collection(line_seg2)
         x.add_collection(line_seg3)
 
+        x.plot(df_pivot.index, df_pivot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
         x.plot(df_pivot.index, df_pivot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1.)
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
@@ -1812,7 +1813,7 @@ def drawAllCCBs2min5B():
     df_pivot.reset_index(drop=False,inplace=True)
     lastBar = df_pivot[('datetime','')].values[-1][5:].replace('-','').replace(':','').replace(' ','_')
 
-    fig, ax = plt.subplots(4, 1, figsize=(10*1,9), sharex=True)
+    fig, ax = plt.subplots(len(etf_dict), 1, figsize=(10*1,9), sharex=True)
 
     tickGap = 24
     xlables = [i[5:].replace('-','').replace(':','').replace(' ','_') for i in df_pivot[( 'datetime','')][::tickGap]]
@@ -1858,7 +1859,7 @@ def drawAllCCBs2min5B():
     plt.tight_layout()
     plt.suptitle(f'{df_pivot[("datetime","")].values[-1][-11:]}',x=0.6, y=0.98)
 
-    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.1.png')
+    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.2.png')
     fig.clf()
     plt.close(fig)
 
