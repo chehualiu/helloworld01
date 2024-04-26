@@ -409,7 +409,7 @@ def getMyOptions():
         time_delta = current_datetime - modified_datetime
         gap_seconds = time_delta.days*24*3600 + time_delta.seconds
         if gap_seconds < 1000:
-            logger.info('\nreusing option file')
+            logger.info('reusing option file')
             data = pd.read_csv(opt_fn, encoding='gbk',dtype={'ETFcode':str,'code':str})
         else:
             try:
@@ -417,7 +417,7 @@ def getMyOptions():
                 logger.info('New option file')
                 data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')
             except:
-                logger.info('\nupdate failed, reusing option file')
+                logger.info('update failed, reusing option file')
                 data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
     else:
         logger.info('New option file ' + opt_fn)
