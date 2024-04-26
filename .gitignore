@@ -26,4 +26,5 @@
 *.exe
 *.msi
 
-.idea
+.idea/
+*bak.py

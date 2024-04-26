@@ -34,33 +34,62 @@ warnings.filterwarnings('ignore')
 np.random.seed(42)
 
 
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+if not os.path.exists('output'):
+    os.makedirs('output')
+
+import logging
+# 创建logger对象
+logger = logging.getLogger('mylogger')
+# 设置日志等级
+logger.setLevel(logging.DEBUG)
+# 追加写入文件a ，设置utf-8编码防止中文写入乱码
+test_log = logging.FileHandler('logs\\monitor_v2.2_'+datetime.datetime.now().strftime('%Y%m%d')+ \
+                               '.log','a',encoding='gbk')
+# 向文件输出的日志级别
+test_log.setLevel(logging.INFO)
+# 向文件输出的日志信息格式
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message).300s',datefmt='%m-%d %H:%M:%S')
+# formatter = logging.Formatter('%(asctime)s - %(filename)s - %(levelname)s - %(message)s')
+test_log.setFormatter(formatter)
+
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+console.setFormatter(formatter)
+
+# 加载文件到logger对象中
+logger.addHandler(test_log)
+logger.addHandler(console)
+
 def TestConnection(Api, type, ip, port):
     if type == 'HQ':
         try:
             is_connect = Api.connect(ip, port)
         except Exception as e:
-            print('Failed to connect to HQ!')
+            logger.info('Failed to connect to HQ!')
             exit(0)
 
         if is_connect is False: 
-            print('HQ is_connect is False!')
+            logger.info('HQ is_connect is False!')
             return False
         else:
-            print('HQ is connected!')
+            logger.info('HQ is connected!')
             return True
 
     elif type=='ExHQ':
         try:
             is_connect = Api.connect(ip, port)
         except Exception as e:
-            print('Failed to connect to Ext HQ!')
+            logger.info('Failed to connect to Ext HQ!')
             exit(0)
 
         if is_connect is False:  
-            print('ExHQ is_connect is False!')
+            logger.info('ExHQ is_connect is False!')
             return False
         else:
-            print('ExHQ is connected')
+            logger.info('ExHQ is connected')
             return True
 
 class tdxData(object):
@@ -124,7 +153,7 @@ class tdxData(object):
             mkt = int(code.split('#')[0])
             code = code.split('#')[1]
             if mkt in [0,1,2] and len(code)!=6: # 深交所0 上交所1 北交所2
-                print(code, 'unknown code')
+                logger.info(code + ' unknown code')
                 return pd.DataFrame()
 
         elif len(code)==6 and code[0] in '0123456789':  # A股
@@ -135,7 +164,7 @@ class tdxData(object):
             elif code[:2] in ['43','83','87']:
                 mkt = 2 # 北交所
             else:
-                print(code, 'unknown code')
+                logger.info(code + ' unknown code')
                 return pd.DataFrame()
 
         elif code[:2].lower()=='zz':  
@@ -154,7 +183,7 @@ class tdxData(object):
             elif code[:2] in ['43','83','87']:
                 mkt = 2 # 北交所
             else:
-                print(code, 'unknown code')
+                logger.info(code +  ' unknown code')
                 return pd.DataFrame()
 
         elif len(code) == 5 and code[0]=='U':    # 期权指标
@@ -164,7 +193,7 @@ class tdxData(object):
             mkt = 71
 
         else:
-            print(code, 'unknown code')
+            logger.info(code +  ' unknown code')
             return pd.DataFrame()
 
         if mkt not in [0,1,2]:
@@ -224,7 +253,7 @@ class tdxData(object):
         # A股复权
         df_fuquan = self.api.get_xdxr_info(mkt, code)
         if df_fuquan is None:
-            print('fuquan code no data', code)
+            logger.info('fuquan code no data ' + code)
             return df_k
         elif len(df_fuquan) == 0:
             return df_k
@@ -255,7 +284,7 @@ class tdxData(object):
                 elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
                     continue
                 else:
-                    print(code, 'unknown name:', row['name'])
+                    logger.info(f'{code}, unknown name: {row["name"]}')
             df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
             return df_k
 
@@ -380,18 +409,18 @@ def getMyOptions():
         time_delta = current_datetime - modified_datetime
         gap_seconds = time_delta.days*24*3600 + time_delta.seconds
         if gap_seconds < 1000:
-            print('\nreusing option file', opt_fn)
+            logger.info('\nreusing option file')
             data = pd.read_csv(opt_fn, encoding='gbk',dtype={'ETFcode':str,'code':str})
         else:
             try:
                 data = getAllOptionsV3()
-                print('\nNew option file', opt_fn)
+                logger.info('New option file')
                 data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')
             except:
-                print('\nupdate failed, reusing option file', opt_fn)
+                logger.info('\nupdate failed, reusing option file')
                 data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
     else:
-        print('\nNew option file', opt_fn)
+        logger.info('New option file ' + opt_fn)
         data = getAllOptionsV3()
         data.to_csv(opt_fn,encoding='gbk',index=False, float_format='%.4f')
 
@@ -471,7 +500,7 @@ def load_file(path, file,start_time,end_time):
         df[['open', 'close', 'high', 'low']] = cal_right_price(df, type='后复权')
         return df
     except:
-        print('load data file failed')
+        logger.info('load data file failed')
         return pd.DataFrame()
 
 def getNorthzjlx():
@@ -713,7 +742,7 @@ def plotAllzjlx():
     hs300_zjlx = getHS300zjlx()  # zjlxdelta
     hs300_index,hs_preclose = getETFindex('510300')  #   close
     if len(hs300_index) == 0:
-        print('failed to get 300ETF df, skipped')
+        logger.info('failed to get 300ETF df, skipped')
         return
     dp_zjlx = MINgetZjlxDP()   # zjlxdelta
     dp_index, dp_preclose = MINgetDPindex()  # close
@@ -747,14 +776,14 @@ def plotAllzjlx():
 
     if df_hs300['up'].values[-1]==True:
         msg = 'UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))
-        print('UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
+        logger.info('UP 510300 hs300' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         msgURL = pushurl + msg
         requests.get(msgURL)
 
     if df_hs300['dw'].values[-1]==True:
         msg = 'UP 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))
-        print('DOWN 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
+        logger.info('DOWN 510300 hs300' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_hs300['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
         msgURL = pushurl + msg
         requests.get(msgURL)
@@ -781,11 +810,11 @@ def plotAllzjlx():
     df_dp.loc[(df_dp['cp30']>0.7) & (df_dp['cp60']>0.7) &  (df_dp['cabovem10']==False) & \
               (df_dp['close']<df_dp['close'].shift(1)), 'dw'] = True
     if df_dp['up'].values[-1]==True:
-        print('UP 999999 沪市大盘' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
+        logger.info('UP 999999 沪市大盘' + ' 低位上穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
 
     if df_dp['dw'].values[-1]==True:
-        print('DOWN 999999 沪市大盘' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
+        logger.info('DOWN 999999 沪市大盘' + ' 高位下穿ma10 -- '+  ' close '+  str(round(df_dp['close'].values[-1],3))+ \
                        '  止损价:' + '-----' + ' 止损%:' +  ' ---- %')
 
     df_dp['up'] = df_dp.apply(lambda x: x.close if x.up==True else np.nan, axis=1)
@@ -912,7 +941,7 @@ def fuquan20231123(api, code, backset, qty, period):
         elif code[:2] in ['43','83','87']:
             mkt = 2 # 北交所
         else:
-            print(code, 'unknown code')
+            logger.info(f'{code} unknown code')
             return pd.DataFrame()
 
         if qty>600:
@@ -955,7 +984,7 @@ def fuquan20231123(api, code, backset, qty, period):
         elif code[:2] in ['43','83','87']:
             mkt = 2 # 北交所
         else:
-            print(code, 'unknown code')
+            logger.info(f'{code} unknown code')
             return pd.DataFrame()
         if qty>600:
             df_k = pd.DataFrame()
@@ -993,7 +1022,7 @@ def fuquan20231123(api, code, backset, qty, period):
             else:
                 df_k = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 0+backset, qty))
     else:
-        print(code, 'unknown code')
+        logger.info(f'{code} unknown code')
         return pd.DataFrame()
 
     # 如果不是日线级别，跳过复权直接返回。
@@ -1001,7 +1030,7 @@ def fuquan20231123(api, code, backset, qty, period):
         return df_k
 
     if len(df_k)<10:
-        print(code, 'pytdx no data')
+        logger.info('{code} pytdx no data')
         return pd.DataFrame()
     df_k['date'] = df_k['datetime'].apply(lambda x: x[:10])
     df_k['preclose'] = df_k['close'].shift(1)
@@ -1031,7 +1060,7 @@ def fuquan20231123(api, code, backset, qty, period):
     # A股复权
     df_fuquan = api.get_xdxr_info(mkt, code)
     if df_fuquan is None:
-        print('fuquan code no data', code)
+        logger.info('fuquan code no data {code}')
         return df_k
     elif len(df_fuquan) == 0:
         return df_k
@@ -1062,7 +1091,7 @@ def fuquan20231123(api, code, backset, qty, period):
         elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
             continue
         else:
-            print(code, 'unknown name:', row['name'])
+            logger.info(f'{code} unknown name: {row["name"]}')
 
     df_k[['open', 'close', 'high', 'low']] = cal_right_price(df_k, type='前复权')
     return df_k
@@ -1077,14 +1106,14 @@ def getSingleCCBData(name, period, backset, klines):
     df_single= tdxData(api, Exapi,code,backset,klines,period).get_data
     df_single.reset_index(drop=True,inplace=True)
     if len(df_single)==0:
-        print(code,'kline error,quitting')
+        logger.info(f'{code} kline error,quitting')
         return
     df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30') if x[-5:]=='13:00' else x)
 
     ccbcode = etf_ccb_dict[name]
     df_ccb = tdxData(api, Exapi, ccbcode,backset,klines,period).get_data
     if len(df_ccb)==0:
-        print(code,'ccb error, quitting')
+        logger.info('{code} ccb error, quitting')
         return
 
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
@@ -1202,7 +1231,7 @@ class etfData(object):
         if len(data)==0:
             data = self.getETFindexEM()
             if len(data)==0:
-                print('Tdx and EM failed for ',self.etfcode)
+                logger.info('Tdx and EM failed for {self.etfcode} ')
                 data = pd.DataFrame()
             return data
         else:
@@ -1248,7 +1277,7 @@ class etfData(object):
             data1 = data.sort_index(ascending=True, ignore_index=True)
             return data1
         except:
-            print('EM failed for ',self.etfcode)
+            logger.info('EM failed for {self.etfcode}')
             return pd.DataFrame()
 
     def getETFindexTdx(self, data_type='1', fqt='1', limit='1000000', end='20500101'):
@@ -1258,7 +1287,7 @@ class etfData(object):
             df_temp.reset_index(drop=True,inplace=True)
             return df_temp[columns]
         except:
-            print('tdx failed for ',self.etfcode)
+            logger.info('tdx failed for {self.etfcode}')
             return pd.DataFrame()
 
     def getCCBdata(self):
@@ -1326,7 +1355,7 @@ class etfData(object):
             mkt = int(code.split('#')[0])
             code = code.split('#')[1]
             if mkt in [0,1,2] and len(code)!=6: # 深交所0 上交所1 北交所2
-                print(code, 'unknown code')
+                logger.info(f'{code} unknown code')
                 return pd.DataFrame()
 
         elif len(code)==6 and code[0] in '0123456789':  # A股
@@ -1337,7 +1366,7 @@ class etfData(object):
             elif code[:2] in ['43','83','87']:
                 mkt = 2 # 北交所
             else:
-                print(code, 'unknown code')
+                logger.info(f'{code} unknown code')
                 return pd.DataFrame()
 
         elif code[:2].lower()=='zz':    # 中证指数
@@ -1356,7 +1385,7 @@ class etfData(object):
             elif code[:2] in ['43','83','87']:
                 mkt = 2 # 北交所
             else:
-                print(code, 'unknown code')
+                logger.info(f'{code} unknown code')
                 return pd.DataFrame()
 
         elif len(code) == 5 and code[0]=='U':    # 期权指标
@@ -1366,7 +1395,7 @@ class etfData(object):
             mkt = 71
 
         else:
-            print(code, 'unknown code')
+            logger.info(f'{code} unknown code')
             return pd.DataFrame()
 
         if mkt not in [0,1,2]:
@@ -1427,7 +1456,7 @@ class etfData(object):
         # A股复权
         df_fuquan = self.api.get_xdxr_info(mkt, code)
         if df_fuquan is None:
-            print('fuquan code no data', code)
+            logger.info(f'fuquan code no data {code}')
             return df_k
         elif len(df_fuquan) == 0:
             return df_k
@@ -1458,7 +1487,7 @@ class etfData(object):
                 elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
                     continue
                 else:
-                    print(code, 'unknown name:', row['name'])
+                    logger.info(f'{code} unknown name: {row["name"]}')
             df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
             return df_k
 
@@ -1699,7 +1728,7 @@ def drawAllCCBmin1C(bars=181):
         elif idx==3:
             x = ax[1,1]
         else:
-            print('no ax for ',idx)
+            logger.info(f'no ax for {idx} ')
 
         dftemp = df_pivot[[('index',''),('open',k),('close',k),('high',k),('low',k)]]
         dftemp.columns=['index','open','close','high','low']
@@ -1868,7 +1897,7 @@ def main():
     global api, Exapi, factor, dayr1,png_dict
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
-        print('waiting market, sleep 40s')
+        logger.info('waiting market, sleep 40s')
         time.sleep(40)
 
     try:
@@ -1882,14 +1911,14 @@ def main():
         Exapi = TdxExHq_API(heartbeat=True)
 
         if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport )==False:
-            print('connection to TDX server not available')
+            logger.info('connection to TDX server not available')
         if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-            print('connection to Ex TDX server not available')
+            logger.info('connection to Ex TDX server not available')
 
         while (time.strftime("%H%M", time.localtime())>='0930' and time.strftime("%H%M", time.localtime())<='1502'):
 
             if (time.strftime("%H%M", time.localtime())>'1130' and time.strftime("%H%M", time.localtime())<'1300'):
-                print('sleep 60s')
+                logger.info('sleep 60s')
                 time.sleep(60)
             else:
                 try:
@@ -1911,8 +1940,8 @@ def main():
         Exapi.close()
         return
     except Exception as e: 
-        print('exception msg: '+ str(e))
-        print(' *****  exception, restart main ***** ')
+        logger.info('exception msg: '+ str(e))
+        logger.info(' *****  exception, restart main ***** ')
         time.sleep(5)
         main()
 
@@ -1920,10 +1949,10 @@ def main():
 if __name__ == '__main__':
 
     prog_start = time.time()
-    print('-------------------------------------------')
-    print('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
+    logger.info('-------------------------------------------')
+    logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
 
-    cfg_fn = 'monitor_v2.1_20240419.cfg'
+    cfg_fn = 'monitor_v2.2.cfg'
     config = configparser.ConfigParser()
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
@@ -1944,15 +1973,15 @@ if __name__ == '__main__':
     
     api = TdxHq_API(heartbeat=True)
     if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport) == False: # or \
-        print('connection to TDX server not available')
+        logger.info('connection to TDX server not available')
 
     Exapi = TdxExHq_API(heartbeat=True)
     if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-        print('connection to EXHQ server not available')
+        logger.info('connection to EXHQ server not available')
 
     now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
     opt_fn =  opt_path +  '\\沪深期权清单_'+ now['datetime'].values[-1][:10].replace('-','')+'.csv'
-    print(opt_fn)
+    logger.info(opt_fn)
 
     try:
         png_dict = getMyOptions()
@@ -1968,6 +1997,6 @@ if __name__ == '__main__':
     Exapi.close()
 
     time_end = time.time()
-    print('-------------------------------------------')
-    print(f'Job completed!!!  All time costed: {(time_end - prog_start):.0f}秒')
+    logger.info('-------------------------------------------')
+    logger.info(f'Job completed!!!  All time costed: {(time_end - prog_start):.0f}秒')
 
