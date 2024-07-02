@@ -1,4 +1,6 @@
 /output
+/logs
+/history
 
 *.cfg
 *.log
@@ -20,7 +22,7 @@
 /dist
 /docs
 /node_modules
-/output
+
 /target
 /tests/__pycache__
 *.exe
