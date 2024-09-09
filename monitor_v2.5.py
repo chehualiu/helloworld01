@@ -14,7 +14,7 @@ from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
 # from utils.tdx_hosts import hq_hosts, Exhq_hosts
 from utils.tdx_indicator import *
-from utils import tdx_hosts
+from utils.tdx_hosts import *
 
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
