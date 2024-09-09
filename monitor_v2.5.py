@@ -12,9 +12,8 @@ import configparser
 
 from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
-# from utils.tdx_hosts import hq_hosts, Exhq_hosts
+from utils.tdx_hosts import hq_hosts, Exhq_hosts
 from utils.tdx_indicator import *
-from utils.tdx_hosts import *
 
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -67,7 +66,7 @@ class mytdxData(object):
     def __init__(self):
 
         api = TdxHq_API(heartbeat=True)
-        apilist=pd.DataFrame(tdx_hosts.hq_hosts)
+        apilist=pd.DataFrame(hq_hosts)
         apilist.columns=['name','ip','port']
         if self.TestConnection(api, 'HQ', apilist['ip'].values[0], apilist['port'].values[0]) == False:  # or \
             if self.TestConnection(api, 'HQ', apilist['ip'].values[1], apilist['port'].values[1]) == False:  # or \
@@ -84,7 +83,7 @@ class mytdxData(object):
             print(f'connection to HQ server[0]!{apilist["name"].values[0]}')
 
         Exapi = TdxExHq_API(heartbeat=True)
-        exapilist=pd.DataFrame(tdx_hosts.Exhq_hosts)
+        exapilist=pd.DataFrame(Exhq_hosts)
         exapilist.columns=['name','ip','port']
         if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[0], exapilist['port'].values[0]) == False:  # or \
             if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[1], exapilist['port'].values[1]) == False:  # or \
