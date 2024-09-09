@@ -1,6 +1,7 @@
 /output
 /logs
 /history
+/utils
 
 *.cfg
 *.log
@@ -30,4 +31,5 @@
 
 /.idea
 *bak.py
+*bak.cfg
 .idea

@@ -12,9 +12,8 @@ import configparser
 
 from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
-import utils.tdxExhq_config as conf
-from pytdx.params import TDXParams
-from pytdx.reader import TdxDailyBarReader,TdxExHqDailyBarReader
+from utils.tdx_hosts import hq_hosts, Exhq_hosts
+from utils.tdx_indicator import *
 
 
 # 支持中文
@@ -63,47 +62,74 @@ console.setFormatter(formatter)
 logger.addHandler(test_log)
 logger.addHandler(console)
 
-def TestConnection(Api, type, ip, port):
-    if type == 'HQ':
-        try:
-            is_connect = Api.connect(ip, port)
-        except Exception as e:
-            logger.info('Failed to connect to HQ!')
-            exit(0)
+class mytdxData(object):
 
-        if is_connect is False: 
-            logger.info('HQ is_connect is False!')
-            return False
+    def __init__(self):
+
+        api = TdxHq_API(heartbeat=True)
+        apilist=pd.DataFrame(hq_hosts)
+        apilist.columns=['name','ip','port']
+        if self.TestConnection(api, 'HQ', apilist['ip'].values[0], apilist['port'].values[0]) == False:  # or \
+            if self.TestConnection(api, 'HQ', apilist['ip'].values[1], apilist['port'].values[1]) == False:  # or \
+                if self.TestConnection(api, 'HQ', apilist['ip'].values[2], apilist['port'].values[2]) == False:  # or \
+                    if self.TestConnection(api, 'HQ', apilist['ip'].values[3], apilist['port'].values[3]) == False:  # or \
+                        print('All HQ server Failed!!!')
+                    else:
+                        print(f'connection to HQ server[3]!{apilist["name"].values[3]}')
+                else:
+                    print(f'connection to HQ server[2]!{apilist["name"].values[2]}')
+            else:
+                print(f'connection to HQ server[1]!{apilist["name"].values[1]}')
         else:
-            logger.info('HQ is connected!')
-            return True
+            print(f'connection to HQ server[0]!{apilist["name"].values[0]}')
 
-    elif type=='ExHQ':
-        try:
-            is_connect = Api.connect(ip, port)
-        except Exception as e:
-            logger.info('Failed to connect to Ext HQ!')
-            exit(0)
-
-        if is_connect is False:  
-            logger.info('ExHQ is_connect is False!')
-            return False
+        Exapi = TdxExHq_API(heartbeat=True)
+        exapilist=pd.DataFrame(Exhq_hosts)
+        exapilist.columns=['name','ip','port']
+        if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[0], exapilist['port'].values[0]) == False:  # or \
+            if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[1], exapilist['port'].values[1]) == False:  # or \
+                if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[2], exapilist['port'].values[2]) == False:  # or \
+                    if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[3], exapilist['port'].values[3]) == False:  # or \
+                        print('All ExHQ server Failed!!!')
+                    else:
+                        print(f'connection to ExHQ server[3]!{exapilist["name"].values[3]}')
+                else:
+                    print(f'connection to ExHQ server[2]!{exapilist["name"].values[2]}')
+            else:
+                print(f'connection to ExHQ server[1]!{exapilist["name"].values[1]}')
         else:
-            logger.info('ExHQ is connected')
-            return True
+            print(f'connection to ExHQ server[0]!{exapilist["name"].values[0]}')
 
-class tdxData(object):
-
-    def __init__(self, api, Exapi,code, backset, klines, period):
-
-        self.code = code  # 指数名称
-        self.backset = backset  # 起始日期
-        self.klines = klines  # 结束日期
-        self.period = period  
         self.api = api
         self.Exapi = Exapi
+        self.useless_cols = ['year','month','day','hour','minute','preclose','change']
+        self.period_dict =  {"5min": 0, "15min": 1, "30min": 2, "60min": 3, "week": 5,
+                  "month": 6, "1min": 8, "day": 9, "quater": 10, "year": 11}
+
+    def TestConnection(self, Api, type, ip, port):
+        if type == 'HQ':
+            try:
+                is_connect = Api.connect(ip, port)
+            except Exception as e:
+                print('connect to HQ Exception!')
+                exit(0)
+            return False if is_connect is False else True
+
+        elif type == 'ExHQ':
+            try:
+                is_connect = Api.connect(ip, port)
+            except Exception as e:
+                print('connect to Ext HQ Exception!')
+                exit(0)
+            return False if is_connect is False else True
 
     def cal_right_price(self, input_stock_data, type='前复权'):
+        """
+        :param input_stock_data: 标准股票数据，需要'收盘价', '涨跌幅'
+        :param type: 确定是前复权还是后复权，分别为'后复权'，'前复权'
+        :return: 新增一列'后复权价'/'前复权价'的stock_data
+        """
+        # 计算收盘复权价
         stock_data = input_stock_data.copy()
         num = {'后复权': 0, '前复权': -1}
 
@@ -113,6 +139,7 @@ class tdxData(object):
         stock_data['复权价'] = stock_data['复权价_temp'] * (price1 / price2)
         stock_data.pop('复权价_temp')
 
+        # 计算开盘复权价
         stock_data['复权价_开盘'] = stock_data['复权价'] / (stock_data['close'] / stock_data['open'])
         stock_data['复权价_最高'] = stock_data['复权价'] / (stock_data['close'] / stock_data['high'])
         stock_data['复权价_最低'] = stock_data['复权价'] / (stock_data['close'] / stock_data['low'])
@@ -140,76 +167,159 @@ class tdxData(object):
         except:
             return pd.DataFrame()
 
-    def fuquan20231123(self, code, backset, qty, period):
+    def get_market_code(self,code):
 
-        fuquan = True
-        zhishu = False
-        if period!=9:         
-            fuquan = False
-        if code[:2] in ['88','11','12','39','99','zz','zs']:  
-            fuquan = False
+        mkt = None
+        fuquan = False
+        isIndex = False
 
         if '#' in code:
             mkt = int(code.split('#')[0])
             code = code.split('#')[1]
-            if mkt in [0,1,2] and len(code)!=6: # 深交所0 上交所1 北交所2
-                logger.info(code + ' unknown code')
-                return pd.DataFrame()
 
-        elif len(code)==6 and code[0] in '0123456789':  # A股
+        if code.isdigit() and len(code)==6: # A股
             if code[:2] in ['15','00','30','16','12','39','18']: # 深市
                 mkt = 0 # 深交所
+                fuquan = True
             elif code[:2] in ['51','58','56','60','68','50','88','11','99']:
                 mkt = 1 # 上交所
+                fuquan = True
             elif code[:2] in ['43','83','87']:
-                mkt = 2 # 北交所
+                mkt = 2 # 北交所pass
+                fuquan = True
             else:
-                logger.info(code + ' unknown code')
-                return pd.DataFrame()
+                pass
 
-        elif code[:2].lower()=='zz':  
-            code = code[-6:]
-            mkt=62
-            fuquan = False
+            if code[:2] in ['39','88','99']:
+                isIndex = True
+                fuquan = False
 
-        elif code[:2].lower()=='zs':
-            fuquan = False
-            zhishu = True
-            code = code[-6:]
-            if code[:2] in ['39']: # 深市
-                mkt = 0 # 深交所
-            elif code[:2] in ['00']:
-                mkt = 1 # 上交所
-            elif code[:2] in ['43','83','87']:
-                mkt = 2 # 北交所
-            else:
-                logger.info(code +  ' unknown code')
-                return pd.DataFrame()
-
-        elif len(code) == 5 and code[0]=='U':    # 期权指标
-            mkt = 68
-
-        elif len(code) == 5 and code[0]=='0':    # 港股通
+        elif code.isdigit() and len(code)==5: # 港股
             mkt = 71
-
+            fuquan = True
+        elif code.isdigit() and len(code)==8: # 期权
+            if code[:2] == '10':
+                mkt = 8
+            elif code[:2] == '90':
+                mkt = 9
+            else:
+                mkt = None
+        elif code.isalpha() : # 美股
+            mkt = None
+        elif len(code) == 5 and code[0]=='U':    # 期权指标如持仓比
+            mkt = 68
         else:
-            logger.info(code +  ' unknown code')
+            mkt = None
+        return mkt,code,fuquan,isIndex
+
+
+    def fuquan202409(self, code, backset, qty=200, period=9):
+
+        mkt,code,fuquan,isIndex = self.get_market_code(code)
+
+        if period!=9:           # 如果不是日线级别，跳过复权直接返回。
+            fuquan = False
+
+        if code[:2] in ['88','11','12','39','99','zz','zs']:  # 指数\债券不复权
+            fuquan = False
+
+        if mkt is None:
+            print(code, 'unknown code')
             return pd.DataFrame()
 
-        if mkt not in [0,1,2]:
-            if qty>600:
+        if mkt in [0,1,2]:  # A股
+            if qty<=600:
+                if isIndex==False:
+                    df_k = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 0 + backset, qty))
+                else:
+                    df_k = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 0 + backset, qty))
+            elif isIndex==False:
+                df_k = pd.DataFrame()
+                for i in range(qty//600):
+                    temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*i+backset, 600))
+                    df_k = pd.concat([temp, df_k])
+                temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
+                df_k = pd.concat([temp, df_k])
+            else:
+                df_k = pd.DataFrame()
+                for i in range(qty//600):
+                    temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*i+backset, 600))
+                    df_k = pd.concat([temp, df_k])
+                temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
+                df_k = pd.concat([temp, df_k])
+
+            if len(df_k) ==0:
+                return pd.DataFrame()
+
+            if fuquan:   # A股复权
+                df_fuquan = self.api.get_xdxr_info(mkt, code)
+                if df_fuquan is None:
+                    return df_k
+                elif len(df_fuquan) == 0:
+                    return df_k
+                else:
+                    df_fuquan = pd.DataFrame(df_fuquan, index=[i for i in range(len(df_fuquan))])
+                    df_fuquan['date'] = df_fuquan.apply(
+                        lambda x: str(x.year) + '-' + str(x.month).zfill(2) + '-' + str(x.day).zfill(2), axis=1)
+
+                    df_k['preclose'] = df_k['close'].shift(1)
+                    df_k['change'] = df_k['close']/df_k['preclose']-1
+                    if 'date' not in df_k.columns:
+                        df_k['date'] = df_k['datetime'].apply(lambda x: x[:10])
+                    for i, row in df_fuquan.iterrows():
+                        if row['date'] not in list(df_k['date']):
+                            continue
+                        elif row['name'] == '除权除息':
+                            preclose = df_k.loc[df_k['date'] == row['date'], 'preclose'].values[0]
+                            thisclose = df_k.loc[df_k['date'] == row['date'], 'close'].values[0]
+                            if row['fenhong'] > 0 and row['songzhuangu'] > 0:
+                                change_new = (thisclose * (row['songzhuangu'] / 10 + 1) + row[
+                                    'fenhong'] / 10 ) / preclose - 1
+                                df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
+                            elif row['fenhong'] > 0:
+                                change_new = (thisclose + row['fenhong'] / 10) / preclose - 1
+                                df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
+                            elif row['songzhuangu'] > 0:
+                                change_new = (thisclose * (row['songzhuangu'] / 10 + 1)) / preclose - 1
+                                df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
+                        elif row['name'] == '扩缩股':
+                            preclose = df_k.loc[df_k['date'] == row['date'], 'preclose']
+                            thisclose = df_k.loc[df_k['date'] == row['date'], 'close']
+                            change_new = (thisclose * row['suogu']) / preclose - 1
+                            df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
+                        elif row['name'] in ['股本变化', '非流通股上市', '转配股上市', '送配股上市']:
+                            continue
+                        else:
+                            print(code, 'unknown name:', row['name'])
+                    df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
+                    return df_k
+            else: # A股不复权
+                return df_k
+
+        elif mkt in [8,9]:  # 期权
+            if qty<=600:
+                df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
+            else:
+                df_k = pd.DataFrame()
+                for i in range(qty//600):
+                    temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
+                    df_k = pd.concat([temp, df_k])
+                temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
+                df_k = pd.concat([temp, df_k])
+            return df_k
+
+        elif mkt == 71:  # 港股
+            if qty<=600:
+                df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
+            else:
                 df_k = pd.DataFrame()
                 for i in range(qty//600):
                     temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
                     df_k = pd.concat([temp,df_k ])
                 temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
                 df_k = pd.concat([temp, df_k])
-            else:
-                df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0+backset, qty))
 
-            if code[0]=='U':
-                return df_k # 扩展接口不复权 直接返回数据
-            else:
+            if fuquan : # 港股通复权
                 df_fuquan = self.get_xdxr_EM(code)  # 港股通复权
                 if len(df_fuquan)==0:
                     return df_k
@@ -222,77 +332,106 @@ class tdxData(object):
                     df_k.loc[df_k['date']==row['date'], 'change'] = change_new
                 df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
                 return df_k
+            else: # 港股通不复权
+                return df_k
 
-        else:
-
-            if qty>600:
-                df_k = pd.DataFrame()
-                if code[:2] in ['88','99','39'] or zhishu==True:
-                    for i in range(qty//600):
-                        temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*i+backset, 600))
-                        df_k = pd.concat([temp,df_k ])
-                    temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                    df_k = pd.concat([temp, df_k])
-                    return df_k # 指数不复权 直接返回数据
-                else:
-                    for i in range(qty//600):
-                        temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*i+backset, 600))
-                        df_k = pd.concat([temp, df_k])
-                    temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                    df_k = pd.concat([temp, df_k])
+        elif mkt == 68:  # 期权持仓比
+            if qty<=600:
+                df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
             else:
-                if code[:2] in ['88','99','39'] or zhishu==True:
-                    df_k = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 0+backset, qty))
-                    return df_k # 指数不复权 直接返回数据
-                else:
-                    df_k = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 0+backset, qty))
-
-        if fuquan==False:
+                df_k = pd.DataFrame()
+                for i in range(qty//600):
+                    temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
+                    df_k = pd.concat([temp,df_k ])
+                temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
+                df_k = pd.concat([temp, df_k])
             return df_k
 
-        # A股复权
-        df_fuquan = self.api.get_xdxr_info(mkt, code)
-        if df_fuquan is None:
-            logger.info('fuquan code no data ' + code)
-            return df_k
-        elif len(df_fuquan) == 0:
-            return df_k
+
+        else:   # 未知 mkt
+            print(code, f'unknown {mkt}')
+            return pd.DataFrame()
+
+    def get_disk_port_data_stock(self,stock):
+        mkt,code,fuquan,isIndex = self.get_market_code(stock)
+
+        if mkt in [0,1,2]:
+            result =pd.DataFrame(self.api.get_security_quotes([(mkt, stock)]))
+            result.rename(columns={'code':'code','last_close':'昨收','bid1':'买一','ask1':'卖一',
+                                   'bid2': '买二', 'ask2': '卖二', 'bid3': '买三', 'ask3': '卖三',
+                                   'bid4': '买四', 'ask4': '卖四', 'bid5': '买五', 'ask5': '卖五',
+                                   'bid_vol1': '买一量', 'ask_vol1': '卖一量',
+                                   'bid_vol2': '买二量', 'ask_vol2': '卖二量', 'bid_vol3': '买三量',
+                                   'ask_vol3': '卖三量', 'bid_vol4': '买四量', 'ask_vol4': '卖四量', 'bid_vol5': '买五量',
+                                   'ask_vol5': '卖五量'}, inplace=True)
         else:
-            df_fuquan = pd.DataFrame(df_fuquan, index=[i for i in range(len(df_fuquan))])
-            df_fuquan['date'] = df_fuquan.apply(lambda x: str(x.year)+'-'+str(x.month).zfill(2)+'-'+str(x.day).zfill(2), axis=1)
-
-            for i,row in df_fuquan.iterrows():
-                if row['date'] not in list(df_k['date']):
-                    continue
-                elif row['name'] == '除权除息':
-                    preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-                    thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-                    if row['fenhong']>0 and row['songzhuangu']>0:
-                        change_new = (thisclose*(row['songzhuangu']/10+1)+row['fenhong']/10*0.95)/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                    elif row['fenhong']>0:
-                        change_new = (thisclose+row['fenhong']/10*0.95)/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                    elif row['songzhuangu']>0:
-                        change_new = (thisclose*(row['songzhuangu']/10+1))/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                elif row['name'] == '扩缩股':
-                    preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-                    thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-                    change_new = (thisclose * row['suogu'])/preclose-1
-                    df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
-                    continue
-                else:
-                    logger.info(f'{code}, unknown name: {row["name"]}')
-            df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
-            return df_k
+            result = pd.DataFrame(self.Exapi.get_instrument_quote(mkt,stock))
+            result.rename(columns={'code':'code','pre_close':'昨收','bid1':'买一','ask1':'卖一',
+                                   'bid2': '买二', 'ask2': '卖二', 'bid3': '买三', 'ask3': '卖三',
+                                   'bid4': '买四', 'ask4': '卖四', 'bid5': '买五', 'ask5': '卖五',
+                                   'bid_vol1': '买一量', 'ask_vol1': '卖一量',
+                                   'bid_vol2': '买二量', 'ask_vol2': '卖二量', 'bid_vol3': '买三量',
+                                   'ask_vol3': '卖三量', 'bid_vol4': '买四量', 'ask_vol4': '卖四量', 'bid_vol5': '买五量',
+                                   'ask_vol5': '卖五量'}, inplace=True)
+        if len(result)==0:
+            return pd.DataFrame()
+        return result[['code','昨收','卖五','卖四','卖三','卖二','卖一','买一','买二','买三','买四','买五',
+                       '卖五量','卖四量','卖三量','卖二量','卖一量','买一量','买二量','买三量','买四量','买五量']].T
 
 
-    @property
-    def get_data(self):
-        df=self.fuquan20231123(self.code, self.backset, self.klines, self.period)
+    def get_kline_data(self,code, backset=0, klines=200, period=9):
+        df=self.fuquan202409(code, backset, klines, period)
+
+        if len(df)==0:
+            return pd.DataFrame()
+
+        if '成交额' not in df.columns:
+            df.rename(columns={'vol': 'volume', 'amount': '成交额'}, inplace=True)
+            df['preclose'] = df['close'].shift(1)
+            df['振幅'] = df.apply(lambda x: (x['high'] - x['low']) / x['preclose'], axis=1)
+            df['涨跌幅'] = df.apply(lambda x: x['close'] / x['preclose'] - 1, axis=1)
+        df.dropna(subset=['preclose'],inplace=True)
+        for col in self.useless_cols:
+            if col in df.columns:
+                del df[col]
+        df.reset_index(drop=True, inplace=True)
         return df
+
+def six_pulse_excalibur(df):
+
+    CLOSE=df['close']
+    LOW=df['low']
+    HIGH=df['high']
+    DIFF=EMA(CLOSE,8)-EMA(CLOSE,13)
+    DEA=EMA(DIFF,5)
+    ABC1=IF(DIFF>DEA,1,0)
+
+    zjsc1=(CLOSE-LLV(LOW,8))/(HHV(HIGH,8)-LLV(LOW,8))*100
+    K=SMA(zjsc1,3,1)
+    D=SMA(K,3,1)
+    ABC2=IF(K>D,1,0)
+
+    ydzb=REF(CLOSE,1)
+    RSI1=(SMA(MAX(CLOSE-ydzb,0),5,1))/(SMA(ABS(CLOSE-ydzb),5,1))*100
+    RSI2=(SMA(MAX(CLOSE-ydzb,0),13,1))/(SMA(ABS(CLOSE-ydzb),13,1))*100
+    ABC3=IF(RSI1>RSI2,1,0)
+
+    zjsc=(HHV(HIGH,13)-CLOSE)/(HHV(HIGH,13)-LLV(LOW,13))*100
+    LWR1=SMA(zjsc,3,1)
+    LWR2=SMA(LWR1,3,1)
+    ABC4=IF(LWR1>LWR2,1,0)
+
+    BBI=(MA(CLOSE,3)+MA(CLOSE,5)+MA(CLOSE,8)+MA(CLOSE,13))/4
+    ABC5=IF(CLOSE>BBI,1,0)
+
+    MTM=CLOSE-REF(CLOSE,1)
+    MMS=100*EMA(EMA(MTM,5),3)/EMA(EMA(ABS(MTM),5),3)
+    MMM=100*EMA(EMA(MTM,13),8)/EMA(EMA(ABS(MTM),13),8)
+    ABC6=IF(MMS>MMM,1,0)
+
+    signal=ABC1+ABC2+ABC3+ABC4+ABC5+ABC6
+
+    return signal
 
 
 def getOptionsTformat(df_4T):
@@ -397,9 +536,10 @@ def getAllOptionsV3():
     return data
 
 def getMyOptions():
-    global dte_high, dte_low,close_Threshold, opt_fn
+    global dte_high, dte_low,close_Threshold, opt_fn, tdxdata
 
-    now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
+    # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
+    now = tdxdata.get_kline_data('999999',0,20,8)
 
     current_datetime = datetime.datetime.strptime(now['datetime'].values[-1],'%Y-%m-%d %H:%M')
 
@@ -467,21 +607,6 @@ def original_strings(x):
     else:
         return x.iloc[0]
 
-def cal_right_price(input_stock_data, type='前复权'):
-    stock_data = input_stock_data.copy()
-    num = {'后复权': 0, '前复权': -1}
-
-    price1 = stock_data['close'].iloc[num[type]]
-    stock_data['复权价_temp'] = (stock_data['change'] + 1.0).cumprod()
-    price2 = stock_data['复权价_temp'].iloc[num[type]]
-    stock_data['复权价'] = stock_data['复权价_temp'] * (price1 / price2)
-    stock_data.pop('复权价_temp')
-
-    stock_data['复权价_开盘'] = stock_data['复权价'] / (stock_data['close'] / stock_data['open'])
-    stock_data['复权价_最高'] = stock_data['复权价'] / (stock_data['close'] / stock_data['high'])
-    stock_data['复权价_最低'] = stock_data['复权价'] / (stock_data['close'] / stock_data['low'])
-
-    return stock_data[['复权价_开盘', '复权价', '复权价_最高', '复权价_最低']]
 
 def readDapanData(startdate,enddate):
 
@@ -493,20 +618,6 @@ def readDapanData(startdate,enddate):
     df_sz = df_sz[(df_sh['date']>=startdate) & (df_sz['date']<=enddate)]
 
     return df_sh,df_sz
-
-def load_file(path, file,start_time,end_time):
-    try:
-        path += file
-        df = pd.read_csv(path, encoding='gbk', skiprows=0) 
-        df.columns = ['date','code','开盘价','最高价','最低价','收盘价','volume','amount','turn','pctChg']
-        df['change'] = df['pctChg']/100
-        df = df[(df['date']>=start_time) & (df['date']<=end_time)]
-        df[['open', 'close', 'high', 'low']] = cal_right_price(df, type='后复权')
-        return df
-    except:
-        logger.info('load data file failed')
-        return pd.DataFrame()
-
 
 def getSouthzjlx():
 
@@ -581,17 +692,31 @@ def MINgetDPindexOld():
 def MINgetDPindex():
     global factor
 
-    day_sh =  pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, 30))
+    # day_sh =  pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, 30))
+    day_sh =  tdxdata.get_kline_data('999999',0,30,9)
+    if 'amount' not in day_sh.columns:
+        day_sh['amount'] = day_sh['成交额']
+    if 'vol' not in day_sh.columns:
+        day_sh['vol'] = day_sh['volume']
     datelast = day_sh['datetime'].values[-2]
     preclose = day_sh[day_sh['datetime']==datelast]['close'].values[-1]
 
-    df_sh =  pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 300))
+    # df_sh =  pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 300))
+    df_sh =  tdxdata.get_kline_data('999999',0,300,8)
+    if 'amount' not in df_sh.columns:
+        df_sh['amount'] = df_sh['成交额']
+    if 'vol' not in df_sh.columns:
+        df_sh['vol'] = df_sh['volume']
+
     df_sh['date'] = df_sh['datetime'].apply(lambda x: x[:10])
     df_sh['time'] = df_sh['datetime'].apply(lambda x: x[11:])
     df_sh = df_sh[(df_sh['datetime']>datelast)]
     df_sh.reset_index(drop=True,inplace=True)
 
-    df_sz =  pd.DataFrame(api.get_index_bars(8, 0, '399001', 0, 300))
+    # df_sz =  pd.DataFrame(api.get_index_bars(8, 0, '399001', 0, 300))
+    df_sz =  tdxdata.get_kline_data('399001',0,300,8)
+    if 'amount' not in df_sz.columns:
+        df_sz['amount'] = df_sz['成交额']
     df_sz['date'] = df_sz['datetime'].apply(lambda x: x[:10])
     df_sz['time'] = df_sz['datetime'].apply(lambda x: x[11:])
     df_sz = df_sz[(df_sz['datetime']>datelast)]
@@ -641,7 +766,8 @@ def getETFindex(etfcode):
     data['avg'] = data['avg'].astype('float')
 
     day = datetime.datetime.now().strftime('%Y-%m-%d')
-    df_poscnt = pd.DataFrame(api.get_index_bars(8,1, '880005', 0, 240))
+    #df_poscnt = pd.DataFrame(api.get_index_bars(8,1, '880005', 0, 240))
+    df_poscnt = tdxdata.get_kline_data('880005',0,240,8)
     if len(df_poscnt)==0:
         return pd.DataFrame(),0
     df_poscnt['day'] = df_poscnt['datetime'].apply(lambda x: x[:10])
@@ -673,17 +799,26 @@ def MINgetZjlxDP():
 
 
 def calAmtFactor(n):
-    df_day = pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, n+1))
-    df_day['date'] = df_day['datetime'].apply(lambda x: x[:10])
+    global tdxdata
+
+    # df_day = pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, n+1))
+    df_day = tdxdata.get_kline_data('999999',0,n+1,9)
+    if 'date' not in df_day.columns:
+        df_day['date'] = df_day['datetime'].apply(lambda x: x[:10])
+    if 'amount' not in df_day.columns:
+        df_day['amount'] = df_day['成交额']
     daylist = df_day['date'].values[:-1]
 
     times = (n+1)*240//800+1 if (n+1)*240%800>0 else (n+1)*240//800
     df_min = pd.DataFrame()
     for i in range(times-1,-1,-1):
-        temp = pd.DataFrame(api.get_index_bars(8, 1, '999999', i*800, 800))
+        # temp = pd.DataFrame(api.get_index_bars(8, 1, '999999', i*800, 800))
+        temp = tdxdata.get_kline_data('999999',i*800,800,8)
         if len(temp)>0:
             df_min = pd.concat([df_min, temp])
 
+    if 'amount' not in df_min.columns:
+        df_min['amount'] = df_min['成交额']
     df_min['date'] = df_min['datetime'].apply(lambda x: x[:10])
     df_min['time'] = df_min['datetime'].apply(lambda x: x[11:])
     df_min = df_min[(df_min['date']>=daylist[0]) & (df_min['date']<=daylist[-1])]
@@ -846,7 +981,7 @@ def plotAllzjlx():
     plt.suptitle('DP HS300 - 时间戳 ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
     plt.tight_layout()
 
-    plt.savefig('output\\持续监控DP_HS300_v2.1_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
+    plt.savefig('output\\持续监控DP_HS300_v2.5_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
 
     fig.clf()
     plt.close(fig)
@@ -874,209 +1009,32 @@ def get_xdxr_EM(code):
         return pd.DataFrame()
 
 
-def fuquan20231123(api, code, backset, qty, period):
+def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
 
-    if '#' in code:
-        mkt = int(code.split('#')[0])
-        code = code.split('#')[1]
-        if qty>600:
-            df_k = pd.DataFrame()
-            for i in range(qty//600):
-                temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-                df_k = pd.concat([temp,df_k ])
-            temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-            df_k = pd.concat([temp, df_k])
-        else:
-            df_k = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 0+backset, qty))
-        return df_k
-
-    elif len(code)==6:
-        if code[:2] in ['15','00','30','16','12','39','18']: # 深市
-            mkt = 0 # 深交所
-        elif code[:2] in ['51','58','56','60','68','50','88','11','99']:
-            mkt = 1 # 上交所
-        elif code[:2] in ['43','83','87']:
-            mkt = 2 # 北交所
-        else:
-            logger.info(f'{code} unknown code')
-            return pd.DataFrame()
-
-        if qty>600:
-            df_k = pd.DataFrame()
-            if code[:2] in ['88','99','39']:
-                for i in range(qty//600):
-                    temp = pd.DataFrame(api.get_index_bars(period, mkt, code, 600*i+backset, 600))
-                    df_k = pd.concat([temp,df_k ])
-                temp = pd.DataFrame(api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                df_k = pd.concat([temp, df_k])
-            else:
-                for i in range(qty//600):
-                    temp = pd.DataFrame(api.get_security_bars(period, mkt, code, 600*i+backset, 600))
-                    df_k = pd.concat([temp, df_k])
-                temp = pd.DataFrame(api.get_security_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                df_k = pd.concat([temp, df_k])
-        else:
-            if code[:2] in ['88','99','39']:
-                df_k = pd.DataFrame(api.get_index_bars(period, mkt, code, 0+backset, qty))
-            else:
-                df_k = pd.DataFrame(api.get_security_bars(period, mkt, code, 0+backset, qty))
-    elif code[:2].lower()=='zz':
-        # code = code[-6:]
-        mkt=62
-        if qty>600:
-            df_k = pd.DataFrame()
-            for i in range(qty//600):
-                temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code[-6:], 600*i+backset, 600))
-                df_k = pd.concat([temp, df_k])
-            temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code[-6:], 600*(qty//600)+backset, qty%600))
-            df_k = pd.concat([temp, df_k])
-        else:
-            df_k = pd.DataFrame(api.get_instrument_bars(period, mkt, code[-6:], 0+backset, qty))
-    elif code[:2].lower()=='zs':
-        code = code[-6:]
-        if code[:2] in ['39']: # 深市
-            mkt = 0 # 深交所
-        elif code[:2] in ['00']:
-            mkt = 1 # 上交所
-        elif code[:2] in ['43','83','87']:
-            mkt = 2 # 北交所
-        else:
-            logger.info(f'{code} unknown code')
-            return pd.DataFrame()
-        if qty>600:
-            df_k = pd.DataFrame()
-            for i in range(qty//600):
-                temp = pd.DataFrame(api.get_index_bars(period, mkt, code, 600*i+backset, 600))
-                df_k = pd.concat([temp, df_k])
-            temp = pd.DataFrame(api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-            df_k = pd.concat([temp, df_k])
-            return df_k
-        else:
-            df_k = pd.DataFrame(api.get_index_bars(period, mkt, code, 0+backset, qty))
-            return df_k
-    elif len(code) == 5:
-        if code[0]=='U':    # 期权指标
-            mkt = 68
-            if qty>600:
-                df_k = pd.DataFrame()
-                for i in range(qty//600):
-                    temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-                    df_k = pd.concat([temp, df_k])
-                temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                df_k = pd.concat([temp, df_k])
-            else:
-                df_k = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 0+backset, qty))
-            return df_k
-        else:
-            mkt = 71    # 港股通
-            if qty>600:
-                df_k = pd.DataFrame()
-                for i in range(qty//600):
-                    temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-                    df_k = pd.concat([temp, df_k])
-                temp = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                df_k = pd.concat([temp, df_k])
-            else:
-                df_k = pd.DataFrame(api.get_instrument_bars(period, mkt, code, 0+backset, qty))
-    else:
-        logger.info(f'{code} unknown code')
-        return pd.DataFrame()
-
-    # 如果不是日线级别，跳过复权直接返回。
-    if period!=9:
-        return df_k
-
-    if len(df_k)<10:
-        logger.info('{code} pytdx no data')
-        return pd.DataFrame()
-    df_k['date'] = df_k['datetime'].apply(lambda x: x[:10])
-    df_k['preclose'] = df_k['close'].shift(1)
-    df_k['change'] = df_k['close']/df_k['close'].shift(1)-1
-    df_k.dropna(subset=['preclose'], inplace=True)
-
-
-    # 港股复权
-    if len(code)==5:
-        df_fuquan = get_xdxr_EM(code)
-        if len(df_fuquan)==0:
-            return df_k
-        for i,row in df_fuquan.iterrows():
-            if row['date'] not in list(df_k['date']):
-                continue
-            preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-            thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-            change_new = (thisclose+row['deal']*0.99)/preclose-1
-            df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-        df_k[['open', 'close', 'high', 'low']] = cal_right_price(df_k, type='前复权')
-        return df_k
-
-    # A股复权 - 略过
-    if code[:2] in ['88','11','12','39','99','zz']:  # 指数不复权
-        return df_k
-
-    # A股复权
-    df_fuquan = api.get_xdxr_info(mkt, code)
-    if df_fuquan is None:
-        logger.info('fuquan code no data {code}')
-        return df_k
-    elif len(df_fuquan) == 0:
-        return df_k
-
-    df_fuquan = pd.DataFrame(df_fuquan, index=[i for i in range(len(df_fuquan))])
-    df_fuquan['date'] = df_fuquan.apply(lambda x: str(x.year)+'-'+str(x.month).zfill(2)+'-'+str(x.day).zfill(2), axis=1)
-
-    for i,row in df_fuquan.iterrows():
-        if row['date'] not in list(df_k['date']):
-            continue
-        elif row['name'] == '除权除息':
-            preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-            thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-            if row['fenhong']>0 and row['songzhuangu']>0:
-                change_new = (thisclose*(row['songzhuangu']/10+1)+row['fenhong']/10*0.95)/preclose-1
-                df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-            elif row['fenhong']>0:
-                change_new = (thisclose+row['fenhong']/10*0.95)/preclose-1
-                df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-            elif row['songzhuangu']>0:
-                change_new = (thisclose*(row['songzhuangu']/10+1))/preclose-1
-                df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-        elif row['name'] == '扩缩股':
-            preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-            thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-            change_new = (thisclose * row['suogu'])/preclose-1
-            df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-        elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
-            continue
-        else:
-            logger.info(f'{code} unknown name: {row["name"]}')
-
-    df_k[['open', 'close', 'high', 'low']] = cal_right_price(df_k, type='前复权')
-    return df_k
-
-
-def getSingleCCBData(name, period, backset, klines):
-    global api, Exapi
     if period==0:
         code = etf_dict2[name]
     else:
-        code = etf_dict[name]
-    df_single= tdxData(api, Exapi,code,backset,klines,period).get_data
+        code = etf_dict2[name]
+    df_single= tdxData.get_kline_data(code, backset=backset, klines=klines, period=period)
     df_single.reset_index(drop=True,inplace=True)
     if len(df_single)==0:
-        logger.info(f'{code} kline error,quitting')
+        print(f'getSingleCCBData {code} kline error,quitting')
         return
     df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30') if x[-5:]=='13:00' else x)
+    df_single['c6sig'] = six_pulse_excalibur(df_single)
 
     ccbcode = etf_ccb_dict[name]
-    df_ccb = tdxData(api, Exapi, ccbcode,backset,klines,period).get_data
+    df_ccb =  tdxData.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
     if len(df_ccb)==0:
-        logger.info('{code} ccb error, quitting')
+        print('getSingleCCBData {code} ccb error, quitting')
         return
-
+    df_ccb['ccb6sig'] = six_pulse_excalibur(df_ccb)
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
-    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low']], on='datetime',how='left')
+    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo','ccb6sig']], df_single[['datetime','open','close','high','low','c6sig']], on='datetime',how='left')
+    data['gap6sig'] = data.apply(lambda x: x['c6sig']-x['ccb6sig'], axis=1)
 
     return data
+
 
 
 def construct_ohlc_collections(data, wid=0.4,linewidths=0.8,marketcolors=None, config=None):
@@ -1128,333 +1086,9 @@ def getKlineObjects(data, linewidths=0.8, bar_width=0.3, bar_linewidth=1.5):
                                   #                                    else 'red' for i in range(len(open_price))])
     return line_segments1,line_segments2,bar_segments
 
-class etfData(object):
-
-    def __init__(self, api, Exapi,etfcode, etfname, bkcode, ccbcode,backset, klines, period):
-
-        self.etfcode = etfcode  
-        self.etfname = etfname  
-        self.bkcode = bkcode    
-        self.ccbcode = ccbcode  
-        self.backset = backset  
-        self.klines = klines 
-        self.period = period 
-        self.EMperiod = 1  
-        self.api = api
-        self.Exapi = Exapi
-
-    def getFullData(self):
-
-        df_price = self.getETFindexData()
-        datestr = df_price['datetime'].values[-1][:-5]
-        df_price['datetime'] = df_price['datetime'].replace(datestr+'13:00', datestr+'11:30')
-        df_zjlx = self.getZJLXdata()
-        df_ccb = self.getCCBdata()
-        df_temp = pd.merge(df_price,df_zjlx, on=['datetime'], how='left')
-        df_temp = pd.merge(df_temp,df_ccb, on=['datetime'], how='left')
-
-        return df_temp
-
-    def getZJLXdata(self):
-        url = 'https://push2.eastmoney.com/api/qt/stock/fflow/kline/get'
-        params = {'cb':'jQuery112300768268570149715_1709708951856', 'lmt':0, 'klt':1,
-                'fields1':'f1,f2,f3,f7', 'fields2':'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65',
-                  'ut':'b2884a393a59ad64002292a3e90d46a5','secid':'90.'+self.bkcode,'_':'1709708951857'}
-        headers = {'Host': 'push2.eastmoney.com','User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0'}
-        res = requests.get(url, params=params, headers=headers)
-
-        try:
-            data1 = json.loads(res.text[42:-2])['data']['klines']
-        except:
-            return pd.DataFrame()
-        min = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'zjlx', 'small', 'med', 'big', 'huge'])
-        min.drop(labels=['small', 'med', 'big', 'huge'], axis=1, inplace=True)
-        min['zjlx'] = min['zjlx'].astype('float') / 100000000
-        min.reset_index(drop=True, inplace=True)
-
-        return min
-
-    def rename_stock_type_1(self,stock='600031'):
-
-        if stock[:3] in ['600','601','603','688','510','511',
-                            '512','513','515','113','110','118','501'] or stock[:2] in ['11']:
-            marker=1
-        else:
-            marker=0
-        return marker,stock
-
-    def getETFindexData(self):
-        data = self.getETFindexTdx()
-        if len(data)==0:
-            data = self.getETFindexEM()
-            if len(data)==0:
-                logger.info('Tdx and EM failed for {self.etfcode} ')
-                data = pd.DataFrame()
-            return data
-        else:
-            return data
-
-    def getETFindexEM(self, data_type = '1', fqt='1', limit='500', end='20500101'):
-        # , stock='159805', end='20500101', limit='1000000',  data_type='D', fqt='1', count=8000):
-
-        marker, stock = self.rename_stock_type_1(self.etfcode)
-        secid = '{}.{}'.format(marker, stock)
-        data_dict = {'1': '1', '5': '5', '15': '15', '30': '30', '60': '60', 'D': '101', 'W': '102', 'M': '103'}
-        klt = data_dict[data_type]
-        params = {
-            'secid': secid,
-            'klt': klt,
-            'fqt': fqt,
-            'lmt': limit,
-            'end': end,
-            'iscca': '1',
-            'fields1': 'f1,f2,f3,f4,f5,f6,f7,f8',
-            'fields2': 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64',
-            'ut': 'f057cbcbce2a86e2866ab8877db1d059',
-            'forcect': '1',
-        }
-        try:
-            url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get?'
-            res = requests.get(url=url, params=params)
-            text = res.text
-            json_text = json.loads(text)
-            df = pd.DataFrame(json_text['data']['klines'])
-            df.columns = ['数据']
-            data_list = []
-            for i in df['数据']:
-                data_list.append(i.split(','))
-            data = pd.DataFrame(data_list)
-            columns = ['datetime', 'open', 'close', 'high', 'low', 'vol',
-                       'amount', '_', '_', '_', '_', '_', '_', '_']
-                       # 'amount', '振幅', '涨跌幅', '涨跌额', '换手率', '_', '_', '_']
-            data.columns = columns
-            del data['_']
-            for m in columns[1:-7]:
-                data[m] = pd.to_numeric(data[m])
-            data1 = data.sort_index(ascending=True, ignore_index=True)
-            return data1
-        except:
-            logger.info('EM failed for {self.etfcode}')
-            return pd.DataFrame()
-
-    def getETFindexTdx(self, data_type='1', fqt='1', limit='1000000', end='20500101'):
-        try:
-            df_temp = tdxData(self.api, self.Exapi, self.etfcode, self.backset, self.klines, self.period).get_data
-            columns=['datetime','open','high','low','close','vol','amount']
-            df_temp.reset_index(drop=True,inplace=True)
-            return df_temp[columns]
-        except:
-            logger.info('tdx failed for {self.etfcode}')
-            return pd.DataFrame()
-
-    def getCCBdata(self):
-        df_temp = tdxData(self.api, self.Exapi,self.ccbcode,self.backset,self.klines,self.period).get_data
-        df_temp.rename(columns={'close':'ccb'},inplace=True)
-        columns = ['datetime', 'ccb']
-        df_temp.reset_index(drop=True, inplace=True)
-        return df_temp[columns]
-
-    def cal_right_price(self, input_stock_data, type='前复权'):
-
-        # 计算收盘复权价
-        stock_data = input_stock_data.copy()
-        num = {'后复权': 0, '前复权': -1}
-
-        price1 = stock_data['close'].iloc[num[type]]
-        stock_data['复权价_temp'] = (stock_data['change'] + 1.0).cumprod()
-        price2 = stock_data['复权价_temp'].iloc[num[type]]
-        stock_data['复权价'] = stock_data['复权价_temp'] * (price1 / price2)
-        stock_data.pop('复权价_temp')
-
-        # 计算开盘复权价
-        stock_data['复权价_开盘'] = stock_data['复权价'] / (stock_data['close'] / stock_data['open'])
-        stock_data['复权价_最高'] = stock_data['复权价'] / (stock_data['close'] / stock_data['high'])
-        stock_data['复权价_最低'] = stock_data['复权价'] / (stock_data['close'] / stock_data['low'])
-
-        return stock_data[['复权价_开盘', '复权价', '复权价_最高', '复权价_最低']]
-
-    def get_xdxr_EM(self,code):
-        if len(code)!=5:
-            return pd.DataFrame()
-        url = 'https://datacenter.eastmoney.com/securities/api/data/v1/get?reportName=RPT_HKF10_MAIN_DIVBASIC'+ \
-              '&columns=SECURITY_CODE,UPDATE_DATE,REPORT_TYPE,EX_DIVIDEND_DATE,DIVIDEND_DATE,TRANSFER_END_DATE,YEAR,PLAN_EXPLAIN,IS_BFP'+ \
-              '&quoteColumns=&filter=(SECURITY_CODE="'+code+'")(IS_BFP="0")&pageNumber=1&pageSize=3&sortTypes=-1,-1'+ \
-              '&sortColumns=NOTICE_DATE,EX_DIVIDEND_DATE&source=F10&client=PC&v=043409724372028'
-        try:
-            res = requests.get(url)
-            data1 = pd.DataFrame(json.loads(res.text)['result']['data'])
-            if len(data1)==0:
-                return pd.DataFrame()
-            else:
-                data1.rename(columns={'EX_DIVIDEND_DATE':'date','SECURITY_CODE':'code','REPORT_TYPE':'type','PLAN_EXPLAIN':'deal'}, inplace=True)
-                data1 = data1[data1['type'].str.contains('分配')]
-                data1['date'] = data1['date'].apply(lambda x: x.replace('/','-'))
-                data1['deal'] = data1['deal'].apply(lambda x: float(re.findall(r'\d+\.\d+(?=[^.\d]*$)',x)[-1]))
-                return data1
-        except:
-            return pd.DataFrame()
-
-    def fuquan20231123(self):
-
-        code = self.etfcode
-        backset = self.backset
-        qty = self.klines
-        period = self.period
-
-        fuquan = True
-        zhishu = False
-        if period!=9:           # 如果不是日线级别，跳过复权直接返回。
-            fuquan = False
-        if code[:2] in ['88','11','12','39','99','zz','zs']:  # 指数不复权
-            fuquan = False
-
-        if '#' in code:
-            mkt = int(code.split('#')[0])
-            code = code.split('#')[1]
-            if mkt in [0,1,2] and len(code)!=6: # 深交所0 上交所1 北交所2
-                logger.info(f'{code} unknown code')
-                return pd.DataFrame()
-
-        elif len(code)==6 and code[0] in '0123456789':  # A股
-            if code[:2] in ['15','00','30','16','12','39','18']: # 深市
-                mkt = 0 # 深交所
-            elif code[:2] in ['51','58','56','60','68','50','88','11','99']:
-                mkt = 1 # 上交所
-            elif code[:2] in ['43','83','87']:
-                mkt = 2 # 北交所
-            else:
-                logger.info(f'{code} unknown code')
-                return pd.DataFrame()
-
-        elif code[:2].lower()=='zz':    # 中证指数
-            code = code[-6:]
-            mkt=62
-            fuquan = False
-
-        elif code[:2].lower()=='zs':
-            fuquan = False
-            zhishu = True
-            code = code[-6:]
-            if code[:2] in ['39']: # 深市
-                mkt = 0 # 深交所
-            elif code[:2] in ['00']:
-                mkt = 1 # 上交所
-            elif code[:2] in ['43','83','87']:
-                mkt = 2 # 北交所
-            else:
-                logger.info(f'{code} unknown code')
-                return pd.DataFrame()
-
-        elif len(code) == 5 and code[0]=='U':    # 期权指标
-            mkt = 68
-
-        elif len(code) == 5 and code[0]=='0':    # 港股通
-            mkt = 71
-
-        else:
-            logger.info(f'{code} unknown code')
-            return pd.DataFrame()
-
-        if mkt not in [0,1,2]:
-
-            if qty>600:
-                df_k = pd.DataFrame()
-                for i in range(qty//600):
-                    temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-                    df_k = pd.concat([temp,df_k ])
-                temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                df_k = pd.concat([temp, df_k])
-            else:
-                df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0+backset, qty))
-
-            if code[0]=='U':
-                return df_k # 扩展接口不复权 直接返回数据
-            else:
-                df_fuquan = self.get_xdxr_EM(code)  # 港股通复权
-                if len(df_fuquan)==0:
-                    return df_k
-                for i,row in df_fuquan.iterrows():
-                    if row['date'] not in list(df_k['date']):
-                        continue
-                    preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-                    thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-                    change_new = (thisclose+row['deal']*0.99)/preclose-1
-                    df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
-                return df_k
-
-        else:
-
-            if qty>600:
-                df_k = pd.DataFrame()
-                if code[:2] in ['88','99','39'] or zhishu==True:
-                    for i in range(qty//600):
-                        temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*i+backset, 600))
-                        df_k = pd.concat([temp,df_k ])
-                    temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                    df_k = pd.concat([temp, df_k])
-                    return df_k # 指数不复权 直接返回数据
-                else:
-                    for i in range(qty//600):
-                        temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*i+backset, 600))
-                        df_k = pd.concat([temp, df_k])
-                    temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-                    df_k = pd.concat([temp, df_k])
-            else:
-                if code[:2] in ['88','99','39'] or zhishu==True:
-                    df_k = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 0+backset, qty))
-                    return df_k # 指数不复权 直接返回数据
-                else:
-                    df_k = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 0+backset, qty))
-
-        if fuquan==False:
-            return df_k
-
-        # A股复权
-        df_fuquan = self.api.get_xdxr_info(mkt, code)
-        if df_fuquan is None:
-            logger.info(f'fuquan code no data {code}')
-            return df_k
-        elif len(df_fuquan) == 0:
-            return df_k
-        else:
-            df_fuquan = pd.DataFrame(df_fuquan, index=[i for i in range(len(df_fuquan))])
-            df_fuquan['date'] = df_fuquan.apply(lambda x: str(x.year)+'-'+str(x.month).zfill(2)+'-'+str(x.day).zfill(2), axis=1)
-
-            for i,row in df_fuquan.iterrows():
-                if row['date'] not in list(df_k['date']):
-                    continue
-                elif row['name'] == '除权除息':
-                    preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-                    thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-                    if row['fenhong']>0 and row['songzhuangu']>0:
-                        change_new = (thisclose*(row['songzhuangu']/10+1)+row['fenhong']/10*0.95)/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                    elif row['fenhong']>0:
-                        change_new = (thisclose+row['fenhong']/10*0.95)/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                    elif row['songzhuangu']>0:
-                        change_new = (thisclose*(row['songzhuangu']/10+1))/preclose-1
-                        df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                elif row['name'] == '扩缩股':
-                    preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-                    thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-                    change_new = (thisclose * row['suogu'])/preclose-1
-                    df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-                elif row['name'] in ['股本变化','非流通股上市','转配股上市','送配股上市']:
-                    continue
-                else:
-                    logger.info(f'{code} unknown name: {row["name"]}')
-            df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
-            return df_k
-
-    @property
-    def get_data(self):
-        df=self.fuquan20231123()
-        return df
 
 def getAllCCBmin1A():
-    global backset, threshold_pct,bins,trade_rate,trendKline, cutloss, cutprofit, png_dict
+    global backset, threshold_pct,bins,trade_rate,trendKline, png_dict,tdxdata
 
     periodkey = '1分钟k线'
     period = int(kline_dict[periodkey])
@@ -1462,19 +1096,21 @@ def getAllCCBmin1A():
 
     df_all = pd.DataFrame()
 
-    for k,v in etf_dict.items():
-        df_single = getSingleCCBData(k,period,backset, klines)
+    for k,v in etf_dict2.items():
+        df_single = getSingleCCBData(tdxdata,k, backset=backset, klines=klines, period=period)
         df_single.sort_values(by=['datetime'],ascending=True, inplace=True)
         df_single.reset_index(drop=True, inplace=True)
         df_single['pctChg'] = df_single['close']/df_single['close'].shift(1)-1
 
         df_single['close'] = df_single['close'].ffill()
+
         df_single['cm5'] = df_single['close'].rolling(5).mean()
         df_single['cm20'] = df_single['close'].rolling(20).mean()
         df_single['cmgap'] = (df_single['cm5'] - df_single['cm20'])/df_single['cm5']
 
         df_single['gap'] = (df_single['close'] - df_single['cm20'])/df_single['close']*100
         df_single['gapabs'] = df_single['gap'].apply(lambda x: abs(x))
+
         gap_threshold = float(etf_threshold[k])
         df_single.loc[(df_single['gap']>gap_threshold),'gapSig'] = df_single['gap']
         df_single.loc[(df_single['gap']<-1*gap_threshold),'gapSig'] = df_single['gap']
@@ -1503,14 +1139,14 @@ def getAllCCBmin1A():
         df_single.loc[(df_single['ccbgap']>df_single['ccbgapm20']) & (df_single['mark']>=0),'up2'] = 0  # (df_single['mark']>=0) &
         df_single.loc[(df_single['ccbgap']<df_single['ccbgapm20']) & (df_single['mark']<=0),'dw2'] = 0
 
-        df_single.loc[(df_single['ccbgap']>df_single['ccbgapm20']) & (df_single['ccbgap'].shift(1)<df_single['ccbgapm20'].shift(1)),'up'] = -1.5  # (df_single['mark']>=0) &
-        df_single.loc[(df_single['ccbgap']<df_single['ccbgapm20']) & (df_single['ccbgap'].shift(1)>df_single['ccbgapm20'].shift(1)),'dw'] = -1.5
+        df_single.loc[(df_single['gap6sig']>=3) & (df_single['gap6sig'].shift(1)<=df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
+        df_single.loc[(df_single['gap6sig']<=-3) & (df_single['gap6sig'].shift(1)>=df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
 
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','ccbm5','ccbm20',
-               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up','dw','up2','dw2'], dropna=False)
+               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up','dw','up2','dw2','gap6sig'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
     df_pivot['time'] = df_pivot[('datetime','')].apply(lambda x: x.split(' ')[1])
@@ -1527,6 +1163,12 @@ def getAllCCBmin1A():
 
     df_pivot['zero'] = 0
     lastBar = df_pivot[('datetime','')].values[-1].replace('-','').replace(':','').replace(' ','_')
+
+    if plot1min == 'N':
+        df_pivot = df_pivot[-121:]
+        df_pivot.reset_index(drop=True, inplace=True)
+        df_pivot.reset_index(drop=False, inplace=True)
+        return df_pivot
 
     fig, ax = plt.subplots(4, 1, figsize=(18,9), sharex=True)
 
@@ -1556,26 +1198,25 @@ def getAllCCBmin1A():
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x3 = x.twinx()
-        x3.set_yticks([])
+        x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
+        x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3,zorder=-30)
+        x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3,zorder=-30)
+        x3.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
 
         x4 = x.twinx()
         x4.plot(df_pivot.index,df_pivot[('ccb',k)],label='ccb', linewidth=0.7, color='green',alpha=1,zorder=-10)
         x4.set_yticks([])
 
-        x5 = x.twinx()
-        x5.plot(df_pivot.index,df_pivot[('ccbgap',k)],  color='blue',linewidth=1.0,linestyle='-')  #marker='.',
-        x5.plot(df_pivot.index,df_pivot[('ccbgapm20',k)], color='blue',linestyle='-', linewidth=0.6)
-        x5.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.7,zorder=-30)
-        x5.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.7,zorder=-30)
-        x5.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
-        x5.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
-        # x5.hlines(-1, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
-        # x5.hlines(1, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
-        # x5.hlines(-0.8, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
-        # x5.hlines(0.8, xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='g', linewidth=0.5, alpha=1.0,zorder=-25)
-        x5.set_ylim(-2,2)
-
-
+        # x5 = x.twinx()
+        # # x5.plot(df_pivot.index,df_pivot[('ccbgap',k)],  color='blue',linewidth=1.0,linestyle='-')  #marker='.',
+        # # x5.plot(df_pivot.index,df_pivot[('ccbgapm20',k)], color='blue',linestyle='-', linewidth=0.6)
+        # x5.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.7,zorder=-30)
+        # x5.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.7,zorder=-30)
+        # x5.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        # x5.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        # # x5.set_ylim(-2,2)
+        # x5.set_yticks([])
 
         x.legend(loc='upper left')
         x4.legend(loc='center left')
@@ -1591,7 +1232,7 @@ def getAllCCBmin1A():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.6, y=0.98)
-    plt.savefig('output\\持续监控ETF1分钟2.1a_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1分钟_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
@@ -1607,8 +1248,6 @@ def getAllCCBmin1A():
 def getAllCCBmin5B():
     global backset, gaphist_pct,bins,png_dict
 
-    trade_rate = 1/10000
-
     periodkey = '5分钟k线'
     period = int(kline_dict[periodkey])
     klines= int(kline_qty[periodkey])
@@ -1616,7 +1255,7 @@ def getAllCCBmin5B():
     df_all = pd.DataFrame()
 
     for k,v in etf_dict.items():
-        df_single = getSingleCCBData(k,period,backset, klines)
+        df_single = getSingleCCBData(tdxdata,k,backset, klines,period)
 
         df_single['time'] = df_single['datetime'].apply(lambda x: x.split(' ')[1])
         df_single['pctChg'] = df_single['close']/df_single['close'].shift(1)-1
@@ -1638,14 +1277,23 @@ def getAllCCBmin5B():
         df_single['ccbma20'] = df_single['ccb'].rolling(20).mean()
         df_single['ccbmgap'] = (df_single['ccbma5'] - df_single['ccbma20'])/df_single['ccbma5']
 
+        df_single.loc[df_single['cmgap']<0,'cmark'] = -1
+        df_single.loc[df_single['cmgap']>0,'cmark'] = 1
+        df_single.loc[df_single['ccbmgap']<0,'ccbmark'] = 1
+        df_single.loc[df_single['ccbmgap']>0,'ccbmark'] = -1
+        df_single['mark'] = df_single['ccbmark'] + df_single['cmark']
+
         df_single['ccbhhv30'] = df_single['ccbh'].rolling(30).max()
         df_single['ccbllv30'] = df_single['ccbl'].rolling(30).min()
         df_single['ccbcp30'] = df_single.apply(lambda x: (x['ccb']-x['ccbllv30'])/(x['ccbhhv30']-x['ccbllv30']), axis=1)
         df_single['ccbgap'] = df_single['ccp30']-df_single['ccbcp30']
         df_single['ccbgapm10'] = df_single['ccbgap'].rolling(10).mean()
 
-        df_single.loc[(df_single['ccbgap']>df_single['ccbgapm10']) & (df_single['ccbgap'].shift(1)<df_single['ccbgapm10'].shift(1)),'up'] = -1.5  # (df_single['mark']>=0) &
-        df_single.loc[(df_single['ccbgap']<df_single['ccbgapm10']) & (df_single['ccbgap'].shift(1)>df_single['ccbgapm10'].shift(1)),'dw'] = -1.5
+        df_single.loc[(df_single['gap6sig']>=2) & (df_single['gap6sig'].shift(1)<df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
+        df_single.loc[(df_single['gap6sig']<=-2) & (df_single['gap6sig'].shift(1)>df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
+
+        df_single.loc[(df_single['ccbgap']>df_single['ccbgapm10']) & (df_single['mark']>=0),'up2'] = 0  # (df_single['mark']>=0) &
+        df_single.loc[(df_single['ccbgap']<df_single['ccbgapm10']) & (df_single['mark']<=0),'dw2'] = 0
 
         df_single.reset_index(drop=True,inplace=True)
 
@@ -1657,13 +1305,19 @@ def getAllCCBmin5B():
 
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open',
-                               'pctChg', 'ccbma5', 'ccbma20', 'cm5', 'cm20', 'ccbgap','ccbgapm10','up','dw'], dropna=False)
+                               'pctChg', 'ccbma5', 'ccbma20', 'cm5', 'cm20', 'ccbgap','ccbgapm10','up2','dw2','up','dw','gap6sig'], dropna=False)
 
     # df_pivot = df_pivot[-49:]
     df_pivot.reset_index(drop=False,inplace=True)
     df_pivot.reset_index(drop=False,inplace=True)
 
-
+    if plot5min == 'N':
+        df_pivot = df_pivot[-49:]
+        if 'index' in df_pivot.columns:
+            del df_pivot['index']
+        df_pivot.reset_index(drop=True, inplace=True)
+        df_pivot.reset_index(drop=False, inplace=True)
+        return df_pivot
 
     lastBar = df_pivot[('datetime','')].values[-1][5:].replace('-','').replace(':','').replace(' ','_')
 
@@ -1696,12 +1350,18 @@ def getAllCCBmin5B():
         x2.set_yticks([])
 
         x3 = x.twinx()
-        x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], color='blue', linewidth=0.7, linestyle='-')  # marker='.',
-        x3.plot(df_pivot.index, df_pivot[('ccbgapm10', k)], color='blue', linestyle='--', linewidth=0.5)
+        # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], color='blue', linewidth=0.7, linestyle='-')  # marker='.',
+        # x3.plot(df_pivot.index, df_pivot[('ccbgapm10', k)], color='blue', linestyle='--', linewidth=0.5)
         # x3.set_yticks([])
-        x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=64, c='red',alpha=0.7)
-        x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=64, c='green',alpha=0.7)
-        x3.set_ylim(-2, 2)
+        x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        x3.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        # x3.set_ylim(-2, 2)
+        # x3.set_yticks([])
+
+        # x4 = x.twinx()
+        x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], color='black', linewidth=0.7, linestyle='-')
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1713,7 +1373,7 @@ def getAllCCBmin5B():
     plt.tight_layout()
     plt.suptitle(f'{df_pivot[("datetime","")].values[-1][-11:]}',x=0.6, y=0.98)
 
-    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.2.png')
+    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.5.png')
     fig.clf()
     plt.close(fig)
 
@@ -1726,6 +1386,7 @@ def getAllCCBmin5B():
     return df_pivot
 
 def drawAllCCBmin1A5B():
+    global tdxdata
 
     df_1min = getAllCCBmin1A()
     df_5min = getAllCCBmin5B()
@@ -1737,7 +1398,7 @@ def drawAllCCBmin1A5B():
 
     nrows = 4
     ncols = 2
-    fig, ax = plt.subplots(nrows, ncols, figsize=(18,9),gridspec_kw={'width_ratios': [2, 3]})#, sharex=True)
+    fig, ax = plt.subplots(nrows, ncols, figsize=(18,9),gridspec_kw={'width_ratios': [2, 4]})#, sharex=True)
 
     tickGap1min = 30
     xlables1min = [i[11:].replace('-','').replace(':','').replace(' ','_') for i in df_1min[( 'datetime','')][::tickGap1min]]
@@ -1758,6 +1419,7 @@ def drawAllCCBmin1A5B():
         x.add_collection(line_seg3)
         x.plot(df_5min.index, df_5min[('cm5', k)], label='ma5', linewidth=1, linestyle='dotted', color='red', alpha=1.)
         x.plot(df_5min.index, df_5min[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1)
+        x.set_yticks([])
 
         x2 = x.twinx()
         df_tmp = df_5min[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
@@ -1768,6 +1430,14 @@ def drawAllCCBmin1A5B():
         x2.add_collection(ccbbar_segments)
         x2.plot(df_5min.index, df_5min[('ccbma5', k)], label='ma5', linewidth=0.9, linestyle='dotted', color='green')
         x2.plot(df_5min.index, df_5min[('ccbma20', k)], label='ma20', linewidth=0.6, linestyle='-.', color='green')
+        x2.set_yticks([])
+
+        x3 = x.twinx()
+        x3.scatter(df_5min.index, df_5min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        x3.scatter(df_5min.index, df_5min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        x3.scatter(df_5min.index, df_5min[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_5min.index, df_5min[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        x3.set_yticks([])
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1815,6 +1485,12 @@ def drawAllCCBmin1A5B():
         x2.plot(df_1min.index, df_1min[('ccbm20', k)], label='ma20', linewidth=0.6, linestyle='-.', color='green')
         x2.set_yticks([])
 
+        x3 = x.twinx()
+        x3.scatter(df_1min.index, df_1min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        x3.scatter(df_1min.index, df_1min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        x3.scatter(df_1min.index, df_1min[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_1min.index, df_1min[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+
         x.legend(loc='upper left')
         x2.legend(loc='center left')
 
@@ -1832,35 +1508,23 @@ def drawAllCCBmin1A5B():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.4, y=0.98)
-    plt.savefig('output\\持续监控ETF1A5B_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1A5B_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
 
     return
 
+
 def main():
 
-    global api, Exapi, factor, dayr1,png_dict
+    global factor, dayr1,png_dict, tdxdata
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
         logger.info('waiting market, sleep 40s')
         time.sleep(40)
 
     try:
-        api.close()
-        Exapi.close()
-    except:
-        time.sleep(5)
-
-    try:
-        api = TdxHq_API(heartbeat=True)
-        Exapi = TdxExHq_API(heartbeat=True)
-
-        if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport )==False:
-            logger.info('connection to TDX server not available')
-        if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-            logger.info('connection to Ex TDX server not available')
 
         while (time.strftime("%H%M", time.localtime())>='0930' and time.strftime("%H%M", time.localtime())<='1502'):
 
@@ -1876,16 +1540,16 @@ def main():
                 plotAllzjlx()
                 time.sleep(20)
 
-
         drawAllCCBmin1A5B()
         plotAllzjlx()
 
-        api.close()
-        Exapi.close()
         return
     except Exception as e: 
         logger.info('exception msg: '+ str(e))
         logger.info(' *****  exception, restart main ***** ')
+        tdxdata.api.close()
+        tdxdata.Exapi.close()
+        tdxdata = mytdxData()
         time.sleep(5)
         main()
 
@@ -1896,7 +1560,7 @@ if __name__ == '__main__':
     logger.info('-------------------------------------------')
     logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
 
-    cfg_fn = 'monitor_v2.4.cfg'
+    cfg_fn = 'monitor_v2.5.cfg'
     config = configparser.ConfigParser()
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
@@ -1914,17 +1578,14 @@ if __name__ == '__main__':
     etf_threshold = dict(config.items('etf_threshold'))
     opt_path = dict(config.items('path'))['opt_path']
     pushurl = dict(config.items('pushmessage'))['url']
+    plot1min = dict(config.items('plotimgs'))['1min']
+    plot5min = dict(config.items('plotimgs'))['5min']
+    plot1min5min = dict(config.items('plotimgs'))['1min5min']
     
-    api = TdxHq_API(heartbeat=True)
-    if TestConnection(api, 'HQ', conf.HQsvr, conf.HQsvrport) == False: # or \
-        logger.info('connection to TDX server not available')
+    tdxdata  = mytdxData()
 
-    Exapi = TdxExHq_API(heartbeat=True)
-    if TestConnection(Exapi, 'ExHQ', conf.ExHQsvr, conf.ExHQsvrport )==False:
-        logger.info('connection to EXHQ server not available')
-
-    now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
-    tempdates = pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, 20))
+    now = tdxdata.get_kline_data('399001',0,20,8)
+    tempdates = tdxdata.get_kline_data('399001',0,20,9)
     opt_fn_last =  opt_path +  '\\沪深期权清单_'+ tempdates['datetime'].values[-2][:10].replace('-','')+'.csv'
     opt_fn =  opt_path +  '\\沪深期权清单_'+ now['datetime'].values[-1][:10].replace('-','')+'.csv'
     logger.info(opt_fn)
@@ -1939,8 +1600,8 @@ if __name__ == '__main__':
 
     main()
 
-    api.close()
-    Exapi.close()
+    tdxdata.api.close()
+    tdxdata.Exapi.close()
 
     time_end = time.time()
     logger.info('-------------------------------------------')
