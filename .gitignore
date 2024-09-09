@@ -1,7 +1,6 @@
 /output
 /logs
 /history
-/utils
 
 *.cfg
 *.log
