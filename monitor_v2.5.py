@@ -1035,17 +1035,17 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
         print(f'getSingleCCBData {code} kline error,quitting')
         return
     df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30') if x[-5:]=='13:00' else x)
-    df_single['c6sig'] = six_pulse_excalibur(df_single)
+    # df_single['c6sig'] = six_pulse_excalibur(df_single)
 
     ccbcode = etf_ccb_dict[name]
     df_ccb =  tdxData.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
     if len(df_ccb)==0:
         print('getSingleCCBData {code} ccb error, quitting')
         return
-    df_ccb['ccb6sig'] = six_pulse_excalibur(df_ccb)
+    # df_ccb['ccb6sig'] = six_pulse_excalibur(df_ccb)
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
-    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo','ccb6sig']], df_single[['datetime','open','close','high','low','c6sig']], on='datetime',how='left')
-    data['gap6sig'] = data.apply(lambda x: x['c6sig']-x['ccb6sig'], axis=1)
+    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low']], on='datetime',how='left')
+    # data['gap6sig'] = data.apply(lambda x: x['c6sig']-x['ccb6sig'], axis=1)
 
     return data
 
@@ -1122,7 +1122,7 @@ def getAllCCBmin1A():
         df_single['cm20'] = df_single['close'].rolling(20).mean()
         df_single['cmgap'] = (df_single['cm5'] - df_single['cm20'])/df_single['cm5']
 
-        df_single['gap'] = (df_single['close'] - df_single['cm20'])/df_single['close']*100
+        df_single['gap'] = (df_single['close'] - df_single['cm20'])/df_single['cm20']*100
         df_single['gapabs'] = df_single['gap'].apply(lambda x: abs(x))
 
         gap_threshold = float(etf_threshold[k])
@@ -1149,18 +1149,18 @@ def getAllCCBmin1A():
         df_single['ccbcp60'] = df_single.apply(lambda x: (x['ccb']-x['ccbllv60'])/(x['ccbhhv60']-x['ccbllv60']), axis=1)
         df_single['ccbgap'] = df_single['ccp60']-df_single['ccbcp60']
 
-        df_single['ccbgapm20'] = df_single['ccbgap'].rolling(20).mean()
+        df_single['ccbgapm20'] = df_single['ccbgap'].rolling(10).mean()
         df_single.loc[(df_single['ccbgap']>df_single['ccbgapm20']) & (df_single['mark']>=0),'up2'] = 0  # (df_single['mark']>=0) &
         df_single.loc[(df_single['ccbgap']<df_single['ccbgapm20']) & (df_single['mark']<=0),'dw2'] = 0
 
-        df_single.loc[(df_single['gap6sig']>=3) & (df_single['gap6sig'].shift(1)<=df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
-        df_single.loc[(df_single['gap6sig']<=-3) & (df_single['gap6sig'].shift(1)>=df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
+        # df_single.loc[(df_single['gap6sig']>=3) & (df_single['gap6sig'].shift(1)<=df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
+        # df_single.loc[(df_single['gap6sig']<=-3) & (df_single['gap6sig'].shift(1)>=df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
 
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','ccbm5','ccbm20',
-               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up','dw','up2','dw2','gap6sig'], dropna=False)
+               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
     df_pivot['time'] = df_pivot[('datetime','')].apply(lambda x: x.split(' ')[1])
@@ -1192,12 +1192,7 @@ def getAllCCBmin1A():
 
     for x,k in zip(ax,  etf_dict.keys()):
 
-        x6 = x.twinx()
-        x6.plot(df_pivot.index,df_pivot[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
-        x6.plot(df_pivot.index,df_pivot[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
-        x6.hlines(float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        x6.hlines(-1* float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        x6.set_yticks([])
+
 
         dftemp = df_pivot[[('index', ''), ('open', k), ('close', k), ('high', k), ('low', k)]]
         dftemp.columns = ['index', 'open', 'close', 'high', 'low']
@@ -1212,14 +1207,32 @@ def getAllCCBmin1A():
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x3 = x.twinx()
-        x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
-        x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3,zorder=-30)
-        x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3,zorder=-30)
-        x3.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
-        x3.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
+        # x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3,zorder=-30)
+        # x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3,zorder=-30)
+        x3.scatter(df_pivot.index, df_pivot[('up2', k)], label='up',s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_pivot.index, df_pivot[('dw2', k)], label='dw',s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        x3.plot(df_pivot.index, df_pivot[('gap', k)], label='m20gap',linewidth=0.5, color='violet', linestyle='-', zorder=-28, alpha=1)
+        x3.plot(df_pivot.index, df_pivot[('gapSig', k)], label='gapsig',linewidth=3, color='violet', zorder=-30, alpha=1)
+        x3.hlines(float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet',
+                  linewidth=0.5, alpha=1.0, zorder=-25)
+        x3.hlines(-1 * float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet',
+                  linewidth=0.5, alpha=1.0, zorder=-25)
+        # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
+        # x3.plot(df_pivot.index, df_pivot[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
+
 
         x4 = x.twinx()
-        x4.plot(df_pivot.index,df_pivot[('ccb',k)],label='ccb', linewidth=0.7, color='green',alpha=1,zorder=-10)
+        # x4.plot(df_pivot.index,df_pivot[('ccb',k)],label='ccb', linewidth=0.7, color='green',alpha=1,zorder=-10)
+        # x4.set_yticks([])
+        df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
+        df_tmp.columns = ['close', 'high', 'low', 'open']
+        ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
+        x4.add_collection(ccbline_seg1)
+        x4.add_collection(ccbline_seg2)
+        x4.add_collection(ccbbar_segments)
+        x4.plot(df_pivot.index, df_pivot[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
+        x4.plot(df_pivot.index, df_pivot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
         x4.set_yticks([])
 
         # x5 = x.twinx()
@@ -1232,8 +1245,15 @@ def getAllCCBmin1A():
         # # x5.set_ylim(-2,2)
         # x5.set_yticks([])
 
+        # x6 = x.twinx()
+        # x6.plot(df_pivot.index,df_pivot[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
+        # x6.plot(df_pivot.index,df_pivot[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
+        # x6.hlines(float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        # x6.hlines(-1* float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        # x6.set_yticks([])
+
         x.legend(loc='upper left')
-        x4.legend(loc='center left')
+        x3.legend(loc='center left')
 
         x.minorticks_on()
         x.grid(which='major', axis="x", color='k', linestyle='-', linewidth=0.3)
@@ -1242,7 +1262,7 @@ def getAllCCBmin1A():
         if k in png_dict.keys():
             x.text(0.25,0.9,  png_dict[k], horizontalalignment='center',transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
-        x.text(0.1, 1., k, horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        # x.text(0.1, 1., k, horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.6, y=0.98)
@@ -1303,8 +1323,8 @@ def getAllCCBmin5B():
         df_single['ccbgap'] = df_single['ccp30']-df_single['ccbcp30']
         df_single['ccbgapm10'] = df_single['ccbgap'].rolling(10).mean()
 
-        df_single.loc[(df_single['gap6sig']>=2) & (df_single['gap6sig'].shift(1)<df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
-        df_single.loc[(df_single['gap6sig']<=-2) & (df_single['gap6sig'].shift(1)>df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
+        # df_single.loc[(df_single['gap6sig']>=2) & (df_single['gap6sig'].shift(1)<df_single['gap6sig']),'up'] = 0  # (df_single['mark']>=0) &
+        # df_single.loc[(df_single['gap6sig']<=-2) & (df_single['gap6sig'].shift(1)>df_single['gap6sig']),'dw'] = 0  # (df_single['mark']>=0) &
 
         df_single.loc[(df_single['ccbgap']>df_single['ccbgapm10']) & (df_single['mark']>=0),'up2'] = 0  # (df_single['mark']>=0) &
         df_single.loc[(df_single['ccbgap']<df_single['ccbgapm10']) & (df_single['mark']<=0),'dw2'] = 0
@@ -1319,7 +1339,7 @@ def getAllCCBmin5B():
 
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open',
-                               'pctChg', 'ccbma5', 'ccbma20', 'cm5', 'cm20', 'ccbgap','ccbgapm10','up2','dw2','up','dw','gap6sig'], dropna=False)
+                               'pctChg', 'ccbma5', 'ccbma20', 'cm5', 'cm20', 'ccbgap','ccbgapm10','up2','dw2'], dropna=False)
 
     # df_pivot = df_pivot[-49:]
     df_pivot.reset_index(drop=False,inplace=True)
@@ -1360,22 +1380,21 @@ def getAllCCBmin5B():
         x2.add_collection(ccbbar_segments)
         x2.plot(df_pivot.index, df_pivot[('ccbma5', k)], label='ma5', linewidth=0.9, linestyle='dotted', color='green')
         x2.plot(df_pivot.index, df_pivot[('ccbma20', k)], label='ma20', linewidth=0.6, linestyle='-.', color='green')
-
         x2.set_yticks([])
 
         x3 = x.twinx()
         # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], color='blue', linewidth=0.7, linestyle='-')  # marker='.',
         # x3.plot(df_pivot.index, df_pivot[('ccbgapm10', k)], color='blue', linestyle='--', linewidth=0.5)
         # x3.set_yticks([])
-        x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3)
-        x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        # x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        # x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
         x3.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
         # x3.set_ylim(-2, 2)
         # x3.set_yticks([])
 
         # x4 = x.twinx()
-        x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], color='black', linewidth=0.7, linestyle='-')
+        # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], color='black', linewidth=0.7, linestyle='-')
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1447,8 +1466,8 @@ def drawAllCCBmin1A5B():
         x2.set_yticks([])
 
         x3 = x.twinx()
-        x3.scatter(df_5min.index, df_5min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
-        x3.scatter(df_5min.index, df_5min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        # x3.scatter(df_5min.index, df_5min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        # x3.scatter(df_5min.index, df_5min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
         x3.scatter(df_5min.index, df_5min[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_5min.index, df_5min[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
         x3.set_yticks([])
@@ -1469,13 +1488,6 @@ def drawAllCCBmin1A5B():
     # 1分钟画图
     for x,k in zip(ax[:,1:],  etf_dict.keys()):
         x = x[0]
-
-        x6 = x.twinx()
-        x6.plot(df_1min.index,df_1min[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
-        x6.plot(df_1min.index,df_1min[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
-        x6.hlines(float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        x6.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        x6.set_yticks([])
 
         dftemp = df_1min[[('index', ''), ('open', k), ('close', k), ('high', k), ('low', k)]]
         dftemp.columns = ['index', 'open', 'close', 'high', 'low']
@@ -1500,13 +1512,27 @@ def drawAllCCBmin1A5B():
         x2.set_yticks([])
 
         x3 = x.twinx()
-        x3.scatter(df_1min.index, df_1min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
-        x3.scatter(df_1min.index, df_1min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
-        x3.scatter(df_1min.index, df_1min[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
-        x3.scatter(df_1min.index, df_1min[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        # x3.scatter(df_1min.index, df_1min[('up', k)], marker='^', s=36, c='red',alpha=0.3)
+        # x3.scatter(df_1min.index, df_1min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
+        x3.scatter(df_1min.index, df_1min[('up2', k)], label='up', s=25, c='r', marker='s', alpha=0.3,zorder=-20)
+        x3.scatter(df_1min.index, df_1min[('dw2', k)], label='dw', s=25, c='g', marker='s', alpha=0.3,zorder=-20)
+        x3.plot(df_1min.index,df_1min[('gap',k)], label='m20gap', linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
+        x3.plot(df_1min.index,df_1min[('gapSig',k)], label='gapSig', linewidth=3, color='violet', zorder=-30,alpha=1)
+        x3.hlines(float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        x3.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        x3.set_yticks([])
+        # x3.plot(df_1min.index, df_1min[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
+        # x3.plot(df_1min.index, df_1min[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
+
+        # x6 = x.twinx()
+        # x6.plot(df_1min.index,df_1min[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
+        # x6.plot(df_1min.index,df_1min[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
+        # x6.hlines(float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        # x6.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        # x6.set_yticks([])
 
         x.legend(loc='upper left')
-        x2.legend(loc='center left')
+        x3.legend(loc='center left')
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1520,7 +1546,7 @@ def drawAllCCBmin1A5B():
         x.set_xticks(range(len(df_1min))[::tickGap1min])
         x.set_xticklabels(xlables1min)
 
-    ax[0,1].text(0.8, 1.0, '三角:gap6sig, 口:m5/m20+gapCP60', horizontalalignment='center', transform=ax[0,1].transAxes, fontsize=12, fontweight='bold', color='black')
+    ax[0,1].text(0.8, 1.0, '信号: m5/m20+gapCP30', horizontalalignment='center', transform=ax[0,1].transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.35, y=0.98)
@@ -1620,8 +1646,6 @@ def drawAllCCBmin1A5B():
 
         fig.clf()
         plt.close(fig)
-
-
 
     return
 
