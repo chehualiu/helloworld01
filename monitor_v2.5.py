@@ -1710,9 +1710,9 @@ if __name__ == '__main__':
     factor = factor+[1.00]
 
     drawAllCCBmin1A5B()
-    # plotAllzjlx()
+    plotAllzjlx()
 
-    # main()
+    main()
 
     tdxdata.api.close()
     tdxdata.Exapi.close()
