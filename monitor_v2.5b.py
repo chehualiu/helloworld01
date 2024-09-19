@@ -1387,7 +1387,7 @@ def getAllCCBmin5B():
     plt.tight_layout()
     plt.suptitle(f'{df_pivot[("datetime","")].values[-1][-11:]}',x=0.6, y=0.98)
 
-    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.5.png')
     fig.clf()
     plt.close(fig)
 
@@ -1515,113 +1515,17 @@ def drawAllCCBmin1A5B():
         if k in png_dict.keys():
             x.text(0.4,0.9,  png_dict[k], horizontalalignment='center',transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
-        # x.text(0.1, 1., k, horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        x.text(0.1, 1., k, horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         x.set_xticks(range(len(df_1min))[::tickGap1min])
         x.set_xticklabels(xlables1min)
 
-    ax[0,1].text(0.8, 1.0, '三角:gap6sig, 口:m5/m20+gapCP60', horizontalalignment='center', transform=ax[0,1].transAxes, fontsize=12, fontweight='bold', color='black')
-
     plt.tight_layout()
-    plt.suptitle(lastBar,x=0.35, y=0.98)
+    plt.suptitle(lastBar,x=0.4, y=0.98)
     plt.savefig('output\\持续监控ETF1A5B_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
-
-    if plotday == 'Y':
-        df_all = pd.DataFrame()
-
-        for k, v in etf_dict.items():
-            df_single = getSingleCCBData(tdxdata, k, backset, 81, 9)
-            df_single['name'] = k
-            df_single['cm5'] = df_single['close'].rolling(5).mean()
-            df_single['cm20'] = df_single['close'].rolling(20).mean()
-
-            df_single['ccbm5'] = df_single['ccb'].rolling(5).mean()
-            df_single['ccbm20'] = df_single['ccb'].rolling(20).mean()
-            df_all = pd.concat([df_all, df_single])#[cols]])
-
-        df_day = df_all.pivot_table(index=['datetime'],columns=['name'],values=['close','high','low','ccb','ccbh','ccbl',
-                      'ccbm5','ccbm20','cm5','cm20'],dropna=False)
-
-        nrows = 4
-        ncols = 2
-        fig, ax = plt.subplots(nrows, ncols, figsize=(15,9),gridspec_kw={'width_ratios': [3, 4]})#, sharex=True)
-
-        tickGapday = 20
-        xlablesday = [i[:10].replace('-','') for i in df_day.index[::tickGapday]]
-
-        tickGap5min = 6
-        xlables5min = [i[8:].replace('-','').replace(' ','_') for i in df_5min[( 'datetime','')][::tickGap5min]]
-
-        # plt.xticks(range(len(df_1min))[::tickGap1min],xlables1min,rotation=90)
-
-        # 日K线画图
-        for x,k in zip(ax[:,:1],  etf_dict.keys()):
-            x = x[0]
-            x.plot(df_day.index, df_day[('close', k)], label=k, linewidth=1, color='red', marker='.', markersize=4,
-                   alpha=0.7)
-            x.plot(df_day.index, df_day[('cm5', k)], linewidth=0.7, color='red', alpha=0.7, linestyle='-.')
-            x.plot(df_day.index, df_day[('cm20', k)], linewidth=0.7, color='red', alpha=0.7, linestyle='--')
-            x.fill_between(df_day.index, df_day[('low', k)], df_day[('high', k)], color='gray', zorder=-15,
-                           alpha=0.5)
-
-            x2 = x.twinx()
-            x2.plot(df_day.index, df_day[('ccb', k)], label='ccb', linewidth=0.5, color='blue', marker='.',
-                    markersize=4, alpha=0.6)
-            x2.plot(df_day.index, df_day[('ccbm20', k)], linewidth=0.5, color='blue', linestyle='-.')
-            x2.plot(df_day.index, df_day[('ccbm20', k)], linewidth=0.5, color='blue', linestyle='--')
-            x2.fill_between(df_day.index, df_day[('ccbl', k)], df_day[('ccbh', k)], color='blue', zorder=-26,
-                            alpha=0.2)
-            x2.set_yticks([])
-
-            x.minorticks_on()
-            x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-            x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.1)
-
-            x.set_xticks(range(len(df_day))[::tickGapday])
-            x.set_xticklabels(xlablesday)
-
-
-
-        # 5分钟画图
-        for x,k in zip(ax[:,1:].tolist(),  etf_dict.keys()):
-            x  = x[0]
-            x.plot(df_5min.index, df_5min[('close', k)], label=k, linewidth=1, color='red', marker='.', markersize=4,
-                   alpha=0.7)
-            x.plot(df_5min.index, df_5min[('cm5', k)], linewidth=0.7, color='red', alpha=0.7, linestyle='-.')
-            x.plot(df_5min.index, df_5min[('cm20', k)], linewidth=0.7, color='red', alpha=0.7, linestyle='--')
-            x.fill_between(df_5min.index, df_5min[('low', k)], df_5min[('high', k)], color='gray', zorder=-15,
-                           alpha=0.5)
-
-            x2 = x.twinx()
-            x2.plot(df_5min.index, df_5min[('ccb', k)], label='ccb', linewidth=0.5, color='blue', marker='.',
-                    markersize=4, alpha=0.6)
-            x2.plot(df_5min.index, df_5min[('ccbma5', k)], linewidth=0.5, color='blue', linestyle='-.')
-            x2.plot(df_5min.index, df_5min[('ccbma20', k)], linewidth=0.5, color='blue', linestyle='--')
-            x2.fill_between(df_5min.index, df_5min[('ccbl', k)], df_5min[('ccbh', k)], color='blue', zorder=-26,
-                            alpha=0.2)
-            x2.set_yticks([])
-
-            x.minorticks_on()
-            x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-            x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.1)
-
-            x.set_xticks(range(len(df_5min))[::tickGap5min])
-            x.set_xticklabels(xlables5min)
-
-        ax[0,0].text(0.1, 1.0, '日K线', horizontalalignment='center', transform=ax[0,0].transAxes, fontsize=12, fontweight='bold', color='black')
-        ax[0,1].text(0.5, 1.0, '5分钟K线', horizontalalignment='center', transform=ax[0,1].transAxes, fontsize=12, fontweight='bold', color='black')
-
-        plt.tight_layout()
-        plt.suptitle(lastBar, x=0.5, y=0.98)
-        plt.savefig('output\\持续监控ETF日Km5K_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
-
-        fig.clf()
-        plt.close(fig)
-
-
 
     return
 
@@ -1656,7 +1560,7 @@ def main():
         return
     except Exception as e: 
         logger.info('exception msg: '+ str(e))
-        logger.info(' *****  exception, recreate tdxdata then restart main ***** ')
+        logger.info(' *****  exception, restart main ***** ')
         tdxdata.api.close()
         tdxdata.Exapi.close()
         tdxdata = mytdxData()
@@ -1669,6 +1573,9 @@ if __name__ == '__main__':
     prog_start = time.time()
     logger.info('-------------------------------------------')
     logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
+
+    sfsd = getSouthzjlx()
+
 
     cfg_fn = 'monitor_v2.5.cfg'
     config = configparser.ConfigParser()
@@ -1691,8 +1598,7 @@ if __name__ == '__main__':
     plot1min = dict(config.items('plotimgs'))['1min']
     plot5min = dict(config.items('plotimgs'))['5min']
     plot1min5min = dict(config.items('plotimgs'))['1min5min']
-    plotday = dict(config.items('plotimgs'))['day']
-
+    
     tdxdata  = mytdxData()
 
     now = tdxdata.get_kline_data('399001',0,20,8)
@@ -1709,10 +1615,7 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    drawAllCCBmin1A5B()
-    # plotAllzjlx()
-
-    # main()
+    main()
 
     tdxdata.api.close()
     tdxdata.Exapi.close()
