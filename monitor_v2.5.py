@@ -1434,7 +1434,7 @@ def drawAllCCBmin1A5B():
     # df_1min['zero'] = 0
 
     lastBar = df_1min[('datetime','')].values[-1].replace('-','').replace(':','').replace(' ','_')
-    openbar = [id for id,v in enumerate(df_1min[('datetime')].tolist()) if '09:31' in v][0]-1
+    openbar = [id for id,v in enumerate(df_1min[('datetime')].tolist()) if ('09:31' in v or '13:01' in v)][0]-1
     openbar5m = [id for id,v in enumerate(df_5min[('datetime')].tolist()) if '09:35' in v][-1]-1
 
     nrows = 4
