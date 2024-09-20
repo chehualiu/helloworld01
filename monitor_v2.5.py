@@ -1044,7 +1044,7 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
         return
     # df_ccb['ccb6sig'] = six_pulse_excalibur(df_ccb)
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
-    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low']], on='datetime',how='left')
+    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low','volume']], on='datetime',how='left')
     # data['gap6sig'] = data.apply(lambda x: x['c6sig']-x['ccb6sig'], axis=1)
 
     return data
@@ -1159,7 +1159,7 @@ def getAllCCBmin1A():
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
 
-    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','ccbm5','ccbm20',
+    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','volume','ccbm5','ccbm20',
                'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
@@ -1221,10 +1221,7 @@ def getAllCCBmin1A():
         # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
         # x3.plot(df_pivot.index, df_pivot[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
-
         x4 = x.twinx()
-        # x4.plot(df_pivot.index,df_pivot[('ccb',k)],label='ccb', linewidth=0.7, color='green',alpha=1,zorder=-10)
-        # x4.set_yticks([])
         df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
         df_tmp.columns = ['close', 'high', 'low', 'open']
         ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
@@ -1234,6 +1231,10 @@ def getAllCCBmin1A():
         x4.plot(df_pivot.index, df_pivot[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
         x4.plot(df_pivot.index, df_pivot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
         x4.set_yticks([])
+
+        x5 = x.twinx()
+        x5.bar(df_pivot.index, df_pivot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+
 
         # x5 = x.twinx()
         # # x5.plot(df_pivot.index,df_pivot[('ccbgap',k)],  color='blue',linewidth=1.0,linestyle='-')  #marker='.',
@@ -1338,7 +1339,7 @@ def getAllCCBmin5B():
         df_all = pd.concat([df_all, df_single])
 
 
-    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open',
+    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','volume',
                                'pctChg', 'ccbma5', 'ccbma20', 'cm5', 'cm20', 'ccbgap','ccbgapm10','up2','dw2'], dropna=False)
 
     # df_pivot = df_pivot[-49:]
@@ -1354,6 +1355,7 @@ def getAllCCBmin5B():
         return df_pivot
 
     lastBar = df_pivot[('datetime','')].values[-1][5:].replace('-','').replace(':','').replace(' ','_')
+    openbar = [id for id,v in enumerate(df_pivot[('datetime')].tolist()) if '09:3' in v][-1]-1
 
     fig, ax = plt.subplots(len(etf_dict), 1, figsize=(10*1,9), sharex=True)
 
@@ -1370,6 +1372,9 @@ def getAllCCBmin5B():
         x.add_collection(line_seg2)
         x.add_collection(line_seg3)
         x.plot(df_pivot.index, df_pivot[('cm5', k)], label='ma5', linewidth=1, linestyle='dotted', color='red', alpha=1.)
+        x.plot(df_pivot.index, df_pivot[('cm20', k)], label='ma20', linewidth=1, linestyle='-.', color='red', alpha=1.)
+        x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue',
+                 linestyles='--', alpha=1)
 
         x2 = x.twinx()
         df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
@@ -1393,8 +1398,9 @@ def getAllCCBmin5B():
         # x3.set_ylim(-2, 2)
         # x3.set_yticks([])
 
-        # x4 = x.twinx()
-        # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], color='black', linewidth=0.7, linestyle='-')
+        x4 = x.twinx()
+        x4.bar(df_pivot.index, df_pivot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+        x4.set_yticks([])
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1428,6 +1434,8 @@ def drawAllCCBmin1A5B():
     # df_1min['zero'] = 0
 
     lastBar = df_1min[('datetime','')].values[-1].replace('-','').replace(':','').replace(' ','_')
+    openbar = [id for id,v in enumerate(df_1min[('datetime')].tolist()) if '09:31' in v][0]-1
+    openbar5m = [id for id,v in enumerate(df_5min[('datetime')].tolist()) if '09:35' in v][-1]-1
 
     nrows = 4
     ncols = 2
@@ -1452,6 +1460,8 @@ def drawAllCCBmin1A5B():
         x.add_collection(line_seg3)
         x.plot(df_5min.index, df_5min[('cm5', k)], label='ma5', linewidth=1, linestyle='dotted', color='red', alpha=1.)
         x.plot(df_5min.index, df_5min[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1)
+        x.vlines(openbar5m, ymin=df_5min[('close', k)].min(), ymax=df_5min[('close', k)].max(), color='blue',
+                 linestyles='--', alpha=1)
         x.set_yticks([])
 
         x2 = x.twinx()
@@ -1471,6 +1481,10 @@ def drawAllCCBmin1A5B():
         x3.scatter(df_5min.index, df_5min[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_5min.index, df_5min[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
         x3.set_yticks([])
+
+        x4 = x.twinx()
+        x4.bar(df_5min.index, df_5min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1498,6 +1512,8 @@ def drawAllCCBmin1A5B():
 
         x.plot(df_1min.index, df_1min[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
         x.plot(df_1min.index, df_1min[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1.)
+        x.vlines(openbar, ymin=df_1min[('close', k)].min(), ymax=df_1min[('close', k)].max(), color='blue',
+                 linestyles='--', alpha=1)
         # x.vlines(openbar, ymin=df_1min[('close', k)].min(), ymax=df_1min[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x2 = x.twinx()
@@ -1523,6 +1539,9 @@ def drawAllCCBmin1A5B():
         x3.set_yticks([])
         # x3.plot(df_1min.index, df_1min[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
         # x3.plot(df_1min.index, df_1min[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
+
+        x4 = x.twinx()
+        x4.bar(df_1min.index, df_1min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
 
         # x6 = x.twinx()
         # x6.plot(df_1min.index,df_1min[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
@@ -1734,9 +1753,9 @@ if __name__ == '__main__':
     factor = factor+[1.00]
 
     drawAllCCBmin1A5B()
-    plotAllzjlx()
+    # plotAllzjlx()
 
-    main()
+    # main()
 
     tdxdata.api.close()
     tdxdata.Exapi.close()
