@@ -675,11 +675,14 @@ def getNorthdata():
     data = {"indexes":[{"codes":["48:883957"],"index_info":[{"index_id":"hsgt_main_money"}]}],
             "time_range":{"time_type":"TREND", "start": start, "end": end}}
 
-    res = requests.post(url=url,params=params,headers=headers, json=data)
-
     try:
+        res = requests.post(url=url, params=params, headers=headers, json=data, timeout=5)
         data1 = json.loads(res.text)['data']['data'][0]['values'][0]['values']
-    except:
+    except requests.exceptions.Timeout:
+        logger.error("getNorthdata() timed out. check proxy")
+        return pd.DataFrame()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"getNorthdata() error check proxy: {e}")
         return pd.DataFrame()
     min = pd.DataFrame(data1,columns=['north'])
     # min.reset_index(drop=True, inplace=True)
