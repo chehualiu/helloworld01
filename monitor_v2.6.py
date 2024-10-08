@@ -44,7 +44,7 @@ logger = logging.getLogger('mylogger')
 # 设置日志等级
 logger.setLevel(logging.DEBUG)
 # 追加写入文件a ，设置utf-8编码防止中文写入乱码
-test_log = logging.FileHandler('logs\\monitor_v2.2_'+datetime.datetime.now().strftime('%Y%m%d')+ \
+test_log = logging.FileHandler('logs\\monitor_v2.6_'+datetime.datetime.now().strftime('%Y%m%d')+ \
                                '.log','a',encoding='gbk')
 # 向文件输出的日志级别
 test_log.setLevel(logging.INFO)
@@ -861,12 +861,27 @@ def plotAllzjlx():
     # north_amt = df_north.north.values[-1]
     south_amt = df_south.south.values[-1]
     hs300_boss = hs300_zjlx.boss.values[-1]
-    upcnt = hs300_index.upcnt.values[-2]
+    upcnt = hs300_index.upcnt.ffill().values[-1]
     # df_dp = pd.merge(df_north, dp_zjlx, left_index=True, right_index=True)
     # df_dp = pd.merge(df_southNorth, dp_zjlx, left_index=True, right_index=True)
     df_dp = pd.merge(df_south, dp_zjlx, left_index=True, right_index=True)
     df_dp = pd.merge(df_dp, dp_index, left_index=True, right_index=True)
+
+    dp_h = max(dp_preclose, dp_index.close.max())
+    dp_l = min(dp_preclose, dp_index.close.min())
+    dp_hh = dp_l + (dp_h-dp_l)*7.5/8
+    dp_ll = dp_l + (dp_h-dp_l)*0.5/8
+    df_dp.loc[(df_dp.close<dp_hh) & (df_dp.close.shift(1)>dp_hh), 'crossdw'] = df_dp.close
+    df_dp.loc[(df_dp.close>dp_ll) & (df_dp.close.shift(1)<dp_ll), 'crossup'] = df_dp.close
+
     df_hs300 = pd.merge(hs300_zjlx, hs300_index,left_index=True, right_index=True)
+    hs_h = max(hs_preclose, df_hs300.close.max())
+    hs_l = min(hs_preclose, df_hs300.close.min())
+    hs_hh = hs_l + (hs_h-hs_l)*7.5/8
+    hs_ll = hs_l + (hs_h-hs_l)*0.5/8
+    df_hs300.loc[(df_hs300.close<hs_hh) & (df_hs300.close.shift(1)>hs_hh), 'crossdw'] = df_hs300.close
+    df_hs300.loc[(df_hs300.close>hs_ll) & (df_hs300.close.shift(1)<hs_ll), 'crossup'] = df_hs300.close
+
 
     dp_amount = str(int(dp_index['amttrend'].values[-2]/100000000))+'亿'
 
@@ -946,8 +961,10 @@ def plotAllzjlx():
 
     df_dp.plot(x='index', y='close', label='dp', linewidth=1, color='red', ax=ax1,zorder=10)
     df_dp.plot(x='index', y='avg', linewidth=1, markersize=10, color='violet', label='avg', ax=ax1,zorder=11)
-    ax1.scatter(df_dp.index, df_dp['up'], marker='^', s=100, c='red',alpha=0.7)
-    ax1.scatter(df_dp.index, df_dp['dw'], marker='v',s=100, c='green',alpha=0.7)
+    ax1.scatter(df_dp.index, df_dp['up'], marker='^', s=100, c='red',alpha=0.4)
+    ax1.scatter(df_dp.index, df_dp['dw'], marker='v',s=100, c='green',alpha=0.5)
+    ax1.scatter(df_dp.index, df_dp['crossup'], marker='D', s=36, c='red',alpha=0.4)
+    ax1.scatter(df_dp.index, df_dp['crossdw'], marker='D',s=36, c='green',alpha=0.5)
 
     ax1.hlines(y=dp_preclose, xmin=0, xmax=240-3, colors='aqua', linestyles='-', lw=2, label='preclose')
 
@@ -959,20 +976,23 @@ def plotAllzjlx():
     ax1c.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
     ax1d.plot(df_dp.index, df_dp.amttrend, label='amttrend', color='green', lw=1.5, alpha=0.5)
     # ax1.text(0.5,0.95,' 大盘主力资金(蓝柱):' + str(round(dp_boss,2)) + ' 北向流入(灰柱):' + str(round(north_amt,2)) + ' 量能(绿线):'+ dp_amount,
-    ax1.text(0.5,0.90,' 大盘主力资金(蓝柱):' + str(round(dp_boss,2))  + ' 量能(绿线):'+ dp_amount,
+    ax1.text(0.5,0.90,f'大盘主力资金(蓝柱):{dp_boss:.2f} 量能(绿线):{dp_amount}',
              horizontalalignment='center',transform=ax1.transAxes, fontsize=12, fontweight='bold', color='black')
 
     df_hs300.plot(x='index', y='close', label='hs300', linewidth=1, color='red', ax=ax2,zorder=10)
     df_hs300.plot(x='index', y='avg', linewidth=1, markersize=10, color='violet', label='avg', ax=ax2,zorder=11)
     ax2.hlines(y=hs_preclose, xmin=0, xmax=240-3, colors='aqua', linestyles='-', lw=2, label='preclose')
-    ax2.scatter(df_hs300.index, df_hs300['up'], marker='^', s=100, c='red',alpha=0.7)
-    ax2.scatter(df_hs300.index, df_hs300['dw'], marker='v',s=100, c='green',alpha=0.7)
+    ax2.scatter(df_hs300.index, df_hs300['up'], marker='^', s=100, c='red',alpha=0.4)
+    ax2.scatter(df_hs300.index, df_hs300['dw'], marker='v',s=100, c='green',alpha=0.5)
+    ax2.scatter(df_hs300.index, df_hs300['crossup'], marker='D', s=36, c='red',alpha=0.4)
+    ax2.scatter(df_hs300.index, df_hs300['crossdw'], marker='D',s=36, c='green',alpha=0.5)
+
     ax2b.bar(df_hs300.index, df_hs300.net, label='zjlx', color='blue', alpha=0.2, zorder=-15)
     ax2b.plot(df_hs300.index, df_hs300.bossma5, label='zjlxm5', color='blue', lw=0.5)
     ax2c.plot(df_hs300.index, df_hs300.upcnt, label='upcnt', color='green', lw=1.5,alpha=0.5 )
     ax2d.bar(df_dp.index, df_dp.southdelta, label=None, color='grey', alpha=0.3, zorder=-14)
     ax2d.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
-    ax2.text(0.5,0.90,'HS300 主力流入(蓝柱):' + str(round(hs300_boss,2))+' 南向流入(灰柱):' + str(round(south_amt,2)) + ' 上涨数(绿线): '+ str(round(upcnt,0)),
+    ax2.text(0.5,0.90, f'HS300 主力流入(蓝柱):{hs300_boss:.0f} 南向流入(灰柱):{south_amt:.1f} 上涨数(绿线): {upcnt:.0f}',
              horizontalalignment='center',transform=ax2.transAxes, fontsize=12, fontweight='bold', color='black')
     ax1b.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
     ax1c.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
@@ -995,7 +1015,7 @@ def plotAllzjlx():
     plt.suptitle('DP HS300 - 时间戳 ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
     plt.tight_layout()
 
-    plt.savefig('output\\持续监控DP_HS300_v2.5_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
+    plt.savefig('output\\持续监控DP_HS300_v2.6_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
 
     fig.clf()
     plt.close(fig)
@@ -1112,7 +1132,33 @@ def getAllCCBmin1A():
 
     for k,v in etf_dict2.items():
         df_single = getSingleCCBData(tdxdata,k, backset=backset, klines=klines, period=period)
-        df_single.sort_values(by=['datetime'],ascending=True, inplace=True)
+        tmp = df_single[df_single['datetime'].str.contains('15:00')]
+        if '15:00' in df_single['datetime'].values[-1]:
+            preidx = tmp.index[-2]
+        else:
+            preidx = tmp.index[-1]
+        preclose =   df_single.loc[preidx,'close']
+        dp_h = max(preclose, df_single[preidx+1:].high.max())
+        dp_l = min(preclose, df_single[preidx+1:].low.min())
+        dp_hh = dp_l + (dp_h - dp_l) * 7.5 / 8
+        dp_ll = dp_l + (dp_h - dp_l) * 0.5 / 8
+        df_single.loc[(df_single.close < dp_hh) & (df_single.close.shift(1) > dp_hh), 'crossdw'] = df_single.close
+        df_single.loc[(df_single.close > dp_ll) & (df_single.close.shift(1) < dp_ll), 'crossup'] = df_single.close
+
+        df_single['cp30'] = (df_single['close'] - df_single['close'].rolling(30).min()) / (
+                    df_single['close'].rolling(30).max() - df_single['close'].rolling(30).min())
+        df_single['cp60'] = (df_single['close'] - df_single['close'].rolling(60).min()) / (
+                    df_single['close'].rolling(60).max() - df_single['close'].rolling(60).min())
+        df_single['cm10'] = df_single['close'].rolling(10).mean()
+        df_single['cabovem10'] = df_single['close'] > df_single['cm10']
+
+        df_single.loc[(df_single['cp30'] < 0.3) & (df_single['cp60'] < 0.3) & (df_single['cabovem10'] == True) & \
+                  (df_single['close'] > df_single['close'].shift(1)), 'up3'] = 1
+        df_single.loc[(df_single['cp30'] > 0.7) & (df_single['cp60'] > 0.7) & (df_single['cabovem10'] == False) & \
+                  (df_single['close'] < df_single['close'].shift(1)), 'dw3'] = 1
+
+
+        # df_single.sort_values(by=['datetime'],ascending=True, inplace=True)
         df_single.reset_index(drop=True, inplace=True)
         df_single['pctChg'] = df_single['close']/df_single['close'].shift(1)-1
 
@@ -1160,7 +1206,7 @@ def getAllCCBmin1A():
         df_all = pd.concat([df_all, df_single])
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','volume','ccbm5','ccbm20',
-               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2'], dropna=False)
+               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2','crossup','crossdw','up3','dw3'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
     df_pivot['time'] = df_pivot[('datetime','')].apply(lambda x: x.split(' ')[1])
@@ -1205,6 +1251,8 @@ def getAllCCBmin1A():
         x.plot(df_pivot.index, df_pivot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
         x.plot(df_pivot.index, df_pivot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1.)
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
+        x.scatter(df_pivot.index, df_pivot[('crossup', k)], s=25, c='r', marker='D', alpha=0.8,zorder=-10)
+        x.scatter(df_pivot.index, df_pivot[('crossdw', k)], s=25, c='g', marker='D', alpha=0.8,zorder=-10)
 
         x3 = x.twinx()
         # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
@@ -1212,12 +1260,15 @@ def getAllCCBmin1A():
         # x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3,zorder=-30)
         x3.scatter(df_pivot.index, df_pivot[('up2', k)], label='up',s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_pivot.index, df_pivot[('dw2', k)], label='dw',s=25, c='g', marker='s', alpha=0.3,zorder=-20)
-        x3.plot(df_pivot.index, df_pivot[('gap', k)], label='m20gap',linewidth=0.5, color='violet', linestyle='-', zorder=-28, alpha=1)
-        x3.plot(df_pivot.index, df_pivot[('gapSig', k)], label='gapsig',linewidth=3, color='violet', zorder=-30, alpha=1)
+        x3.scatter(df_pivot.index, df_pivot[('up3', k)], s=25, c='r', marker='^', alpha=0.7,zorder=-10)
+        x3.scatter(df_pivot.index, df_pivot[('dw3', k)], s=25, c='g', marker='v', alpha=0.7,zorder=-10)
+        # x3.plot(df_pivot.index, df_pivot[('gap', k)], label='m20gap',linewidth=0.5, color='violet', linestyle='-', zorder=-28, alpha=1)
+        # x3.plot(df_pivot.index, df_pivot[('gapSig', k)], label='gapsig',linewidth=3, color='violet', zorder=-30, alpha=0.7)
         x3.hlines(float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet',
                   linewidth=0.5, alpha=1.0, zorder=-25)
         x3.hlines(-1 * float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet',
                   linewidth=0.5, alpha=1.0, zorder=-25)
+        x3.set_ylim(-10, 10)
         # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
         # x3.plot(df_pivot.index, df_pivot[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
@@ -1234,7 +1285,7 @@ def getAllCCBmin1A():
 
         x5 = x.twinx()
         x5.bar(df_pivot.index, df_pivot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
-
+        x5.set_yticks([])
 
         # x5 = x.twinx()
         # # x5.plot(df_pivot.index,df_pivot[('ccbgap',k)],  color='blue',linewidth=1.0,linestyle='-')  #marker='.',
@@ -1267,7 +1318,7 @@ def getAllCCBmin1A():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.6, y=0.98)
-    plt.savefig('output\\持续监控ETF1分钟_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1分钟_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
@@ -1412,7 +1463,7 @@ def getAllCCBmin5B():
     plt.tight_layout()
     plt.suptitle(f'{df_pivot[("datetime","")].values[-1][-11:]}',x=0.6, y=0.98)
 
-    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
     fig.clf()
     plt.close(fig)
 
@@ -1462,7 +1513,7 @@ def drawAllCCBmin1A5B():
         x.plot(df_5min.index, df_5min[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1)
         x.vlines(openbar5m, ymin=df_5min[('close', k)].min(), ymax=df_5min[('close', k)].max(), color='blue',
                  linestyles='--', alpha=1)
-        x.set_yticks([])
+        # x.set_yticks([])
 
         x2 = x.twinx()
         df_tmp = df_5min[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
@@ -1484,7 +1535,7 @@ def drawAllCCBmin1A5B():
 
         x4 = x.twinx()
         x4.bar(df_5min.index, df_5min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
-
+        x4.set_yticks([])
 
         x.minorticks_on()
         x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
@@ -1514,6 +1565,10 @@ def drawAllCCBmin1A5B():
         x.plot(df_1min.index, df_1min[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1.)
         x.vlines(openbar, ymin=df_1min[('close', k)].min(), ymax=df_1min[('close', k)].max(), color='blue',
                  linestyles='--', alpha=1)
+        x.scatter(df_1min.index, df_1min[('crossup', k)], s=25, c='r', marker='D', alpha=1,zorder=-10)
+        x.scatter(df_1min.index, df_1min[('crossdw', k)], s=25, c='g', marker='D', alpha=1,zorder=-10)
+
+
         # x.vlines(openbar, ymin=df_1min[('close', k)].min(), ymax=df_1min[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x2 = x.twinx()
@@ -1532,17 +1587,20 @@ def drawAllCCBmin1A5B():
         # x3.scatter(df_1min.index, df_1min[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
         x3.scatter(df_1min.index, df_1min[('up2', k)], label='up', s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_1min.index, df_1min[('dw2', k)], label='dw', s=25, c='g', marker='s', alpha=0.3,zorder=-20)
-        x3.plot(df_1min.index,df_1min[('gap',k)], label='m20gap', linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
-        x3.plot(df_1min.index,df_1min[('gapSig',k)], label='gapSig', linewidth=3, color='violet', zorder=-30,alpha=1)
+        x3.scatter(df_1min.index, df_1min[('up3', k)], s=25, c='r', marker='^', alpha=0.7,zorder=-10)
+        x3.scatter(df_1min.index, df_1min[('dw3', k)], s=25, c='g', marker='v', alpha=0.7,zorder=-10)
+        # x3.plot(df_1min.index,df_1min[('gap',k)], label='m20gap', linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
+        # x3.plot(df_1min.index,df_1min[('gapSig',k)], label='gapSig', linewidth=3, color='violet', zorder=-30,alpha=0.7)
         x3.hlines(float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
         x3.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        x3.set_ylim(-10, 10)
         x3.set_yticks([])
         # x3.plot(df_1min.index, df_1min[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
         # x3.plot(df_1min.index, df_1min[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
         x4 = x.twinx()
         x4.bar(df_1min.index, df_1min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
-
+        x4.set_yticks([])
         # x6 = x.twinx()
         # x6.plot(df_1min.index,df_1min[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
         # x6.plot(df_1min.index,df_1min[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
@@ -1569,7 +1627,7 @@ def drawAllCCBmin1A5B():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.35, y=0.98)
-    plt.savefig('output\\持续监控ETF1A5B_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1A5B_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
@@ -1661,7 +1719,7 @@ def drawAllCCBmin1A5B():
 
         plt.tight_layout()
         plt.suptitle(lastBar, x=0.5, y=0.98)
-        plt.savefig('output\\持续监控ETF日Km5K_v2.5_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+        plt.savefig('output\\持续监控ETF日Km5K_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
         fig.clf()
         plt.close(fig)
@@ -1713,7 +1771,7 @@ if __name__ == '__main__':
     logger.info('-------------------------------------------')
     logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
 
-    cfg_fn = 'monitor_v2.5.cfg'
+    cfg_fn = 'monitor_v2.6.cfg'
     config = configparser.ConfigParser()
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])

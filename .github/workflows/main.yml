@@ -21,11 +21,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Windows EXE
-        run: pyinstaller --onefile monitor_v2.5.py --name="monitor_v2.5.exe" --distpath="D:\build"
+        run: pyinstaller --onefile monitor_v2.6.py --name="monitor_v2.6.exe" --distpath="D:\build"
 
       - name: (Upload) generated file
         uses: actions/upload-artifact@v4
         with:
-          name: monitor_v2.5.exe
+          name: monitor_v2.6.exe
           path: D:\build\
           overwrite: true
