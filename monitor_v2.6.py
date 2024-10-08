@@ -654,6 +654,39 @@ def getSouthzjlx():
 
     return min
 
+def getNorthdata():
+
+    url = 'https://dataq.10jqka.com.cn/fetch-data-server/fetch/v1/interval_data'
+
+    params={ }
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
+        'Referer': 'https://data.eastmoney.com/hsgt/hsgtV2.html',
+        'Content-Type': 'application/json;charset=utf-8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+        'Connection': 'keep-alive',
+        'Host': 'dataq.10jqka.com.cn'}
+
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    start = int(datetime.datetime.strptime(f'{today} 09:30', '%Y-%m-%d %H:%M').timestamp())    # "1728351000"
+    end = int(datetime.datetime.strptime(f'{today} 15:00', '%Y-%m-%d %H:%M').timestamp())
+    data = {"indexes":[{"codes":["48:883957"],"index_info":[{"index_id":"hsgt_main_money"}]}],
+            "time_range":{"time_type":"TREND", "start": start, "end": end}}
+
+    res = requests.post(url=url,params=params,headers=headers, json=data)
+
+    try:
+        data1 = json.loads(res.text)['data']['data'][0]['values'][0]['values']
+    except:
+        return pd.DataFrame()
+    min = pd.DataFrame(data1,columns=['north'])
+    # min.reset_index(drop=True, inplace=True)
+    min['northdelta'] = min['north'] - min['north'].shift(1)
+
+    return min
+
 def getHS300zjlx():
     url = 'https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?cb=jQuery112304151702712546592_1652363383462&lmt=0&klt=1'+ \
           '&fields1=f1%2Cf2%2Cf3%2Cf7&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf62%2Cf63%2Cf64%2Cf65&ut=b2884a393a59ad64002292a3e90d46a5'+ \
@@ -846,8 +879,8 @@ def calAmtFactor(n):
 
 
 def plotAllzjlx():
-    # df_north = getNorthzjlx()
-    df_south = getSouthzjlx()
+    df_north = getNorthdata()
+    # df_south = getSouthzjlx()
     # df_southNorth = pd.merge(df_north, df_south, left_index=True, right_index=True)
     hs300_zjlx = getHS300zjlx()  # zjlxdelta
     hs300_index,hs_preclose = getETFindex('510300')  #   close
@@ -859,12 +892,12 @@ def plotAllzjlx():
 
     dp_boss = dp_zjlx.boss.values[-1]/100000000
     # north_amt = df_north.north.values[-1]
-    south_amt = df_south.south.values[-1]
+    north_amt = df_north.north.values[-1]/100000000
     hs300_boss = hs300_zjlx.boss.values[-1]
     upcnt = hs300_index.upcnt.ffill().values[-1]
     # df_dp = pd.merge(df_north, dp_zjlx, left_index=True, right_index=True)
     # df_dp = pd.merge(df_southNorth, dp_zjlx, left_index=True, right_index=True)
-    df_dp = pd.merge(df_south, dp_zjlx, left_index=True, right_index=True)
+    df_dp = pd.merge(df_north, dp_zjlx, left_index=True, right_index=True)
     df_dp = pd.merge(df_dp, dp_index, left_index=True, right_index=True)
 
     dp_h = max(dp_preclose, dp_index.close.max())
@@ -987,12 +1020,13 @@ def plotAllzjlx():
     ax2.scatter(df_hs300.index, df_hs300['crossup'], marker='D', s=36, c='red',alpha=0.4)
     ax2.scatter(df_hs300.index, df_hs300['crossdw'], marker='D',s=36, c='green',alpha=0.5)
 
-    ax2b.bar(df_hs300.index, df_hs300.net, label='zjlx', color='blue', alpha=0.2, zorder=-15)
-    ax2b.plot(df_hs300.index, df_hs300.bossma5, label='zjlxm5', color='blue', lw=0.5)
+    # ax2b.bar(df_hs300.index, df_hs300.net, label='zjlx', color='blue', alpha=0.2, zorder=-15)
+    # ax2b.plot(df_hs300.index, df_hs300.bossma5, label='zjlxm5', color='blue', lw=0.5)
+    ax2b.plot(df_hs300.index, df_hs300.boss, label='hs300boss', color='blue', lw=0.8, zorder=-17,alpha=0.8)
     ax2c.plot(df_hs300.index, df_hs300.upcnt, label='upcnt', color='green', lw=1.5,alpha=0.5 )
-    ax2d.bar(df_dp.index, df_dp.southdelta, label=None, color='grey', alpha=0.3, zorder=-14)
+    ax2d.bar(df_dp.index, df_dp.northdelta, label=None, color='blue', alpha=0.2, zorder=-14)
     ax2d.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
-    ax2.text(0.5,0.90, f'HS300 主力流入(蓝柱):{hs300_boss:.0f} 南向流入(灰柱):{south_amt:.1f} 上涨数(绿线): {upcnt:.0f}',
+    ax2.text(0.5,0.90, f'HS300 主力流入(蓝线):{hs300_boss:.0f} 北向流入(蓝柱):{north_amt:.1f}亿 上涨数(绿线): {upcnt:.0f}',
              horizontalalignment='center',transform=ax2.transAxes, fontsize=12, fontweight='bold', color='black')
     ax1b.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
     ax1c.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
@@ -1810,8 +1844,8 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    drawAllCCBmin1A5B()
-    plotAllzjlx()
+    # drawAllCCBmin1A5B()
+    # plotAllzjlx()
 
     main()
 
