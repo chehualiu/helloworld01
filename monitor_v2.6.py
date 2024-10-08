@@ -916,7 +916,7 @@ def plotAllzjlx():
     df_hs300.loc[(df_hs300.close>hs_ll) & (df_hs300.close.shift(1)<hs_ll), 'crossup'] = df_hs300.close
 
 
-    dp_amount = str(int(dp_index['amttrend'].values[-2]/100000000))+'亿'
+    dp_amount = dp_index['amttrend'].values[-2]/100000000
 
     #################
 
@@ -1008,8 +1008,7 @@ def plotAllzjlx():
 
     ax1c.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
     ax1d.plot(df_dp.index, df_dp.amttrend, label='amttrend', color='green', lw=1.5, alpha=0.5)
-    # ax1.text(0.5,0.95,' 大盘主力资金(蓝柱):' + str(round(dp_boss,2)) + ' 北向流入(灰柱):' + str(round(north_amt,2)) + ' 量能(绿线):'+ dp_amount,
-    ax1.text(0.5,0.90,f'大盘主力资金(蓝柱):{dp_boss:.2f} 量能(绿线):{dp_amount}',
+    ax1.text(0.5,0.90,f'大盘主力资金(蓝柱):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿',
              horizontalalignment='center',transform=ax1.transAxes, fontsize=12, fontweight='bold', color='black')
 
     df_hs300.plot(x='index', y='close', label='hs300', linewidth=1, color='red', ax=ax2,zorder=10)
@@ -1026,7 +1025,7 @@ def plotAllzjlx():
     ax2c.plot(df_hs300.index, df_hs300.upcnt, label='upcnt', color='green', lw=1.5,alpha=0.5 )
     ax2d.bar(df_dp.index, df_dp.northdelta, label=None, color='blue', alpha=0.2, zorder=-14)
     ax2d.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
-    ax2.text(0.5,0.90, f'HS300 主力流入(蓝线):{hs300_boss:.0f} 北向流入(蓝柱):{north_amt:.1f}亿 上涨数(绿线): {upcnt:.0f}',
+    ax2.text(0.5,0.90, f'HS300 主力流入(蓝线):{hs300_boss:.0f}亿 北向流入(蓝柱):{north_amt:.1f}亿 上涨数(绿线): {upcnt:.0f}',
              horizontalalignment='center',transform=ax2.transAxes, fontsize=12, fontweight='bold', color='black')
     ax1b.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
     ax1c.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
