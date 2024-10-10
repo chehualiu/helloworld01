@@ -44,7 +44,7 @@ logger = logging.getLogger('mylogger')
 # 设置日志等级
 logger.setLevel(logging.DEBUG)
 # 追加写入文件a ，设置utf-8编码防止中文写入乱码
-test_log = logging.FileHandler('logs\\monitor_v2.6_'+datetime.datetime.now().strftime('%Y%m%d')+ \
+test_log = logging.FileHandler('logs\\monitor_v2.7_'+datetime.datetime.now().strftime('%Y%m%d')+ \
                                '.log','a',encoding='gbk')
 # 向文件输出的日志级别
 test_log.setLevel(logging.INFO)
@@ -176,8 +176,15 @@ class mytdxData(object):
             mkt = int(code.split('#')[0])
             code = code.split('#')[1]
 
+        if code[:2] == 'ZS':
+            code = code[-6:]
+            isIndex = True
+            fuquan = False
+
         if code.isdigit() and len(code)==6: # A股
-            if code[:2] in ['15','00','30','16','12','39','18']: # 深市
+            if isIndex==True:
+                mkt = 1 if code[:2] == '00' else 0 # 上证指数，深证成指
+            elif code[:2] in ['15','00','30','16','12','39','18']: # 深市
                 mkt = 0 # 深交所
                 fuquan = True
             elif code[:2] in ['51','58','56','60','68','50','88','11','99']:
@@ -377,6 +384,20 @@ class mytdxData(object):
         return result[['code','昨收','卖五','卖四','卖三','卖二','卖一','买一','买二','买三','买四','买五',
                        '卖五量','卖四量','卖三量','卖二量','卖一量','买一量','买二量','买三量','买四量','买五量']].T
 
+
+    def get_minute_data(self, code, day):
+        mkt,code,fuquan,isIndex = self.get_market_code(code)
+
+        if isinstance(day, str):
+            day = int(day.replace('-',''))
+
+        if mkt in [0,1,2] and isIndex==False:
+            data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
+        elif mkt in [0,1,2] and isIndex==True:
+            data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
+        else:
+            data = pd.DataFrame()
+        return data
 
     def get_kline_data(self,code, backset=0, klines=200, period=9):
         df=self.fuquan202409(code, backset, klines, period)
@@ -1168,6 +1189,9 @@ def getAllCCBmin1A():
 
     for k,v in etf_dict2.items():
         df_single = getSingleCCBData(tdxdata,k, backset=backset, klines=klines, period=period)
+        df_BKzjlx = getBKZjlxRT(etfbk_dict[k])
+        df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
+
         tmp = df_single[df_single['datetime'].str.contains('15:00')]
         if '15:00' in df_single['datetime'].values[-1]:
             preidx = tmp.index[-2]
@@ -1201,6 +1225,7 @@ def getAllCCBmin1A():
         df_single['close'] = df_single['close'].ffill()
 
         df_single['cm5'] = df_single['close'].rolling(5).mean()
+        df_single['cm10'] = df_single['close'].rolling(10).mean()
         df_single['cm20'] = df_single['close'].rolling(20).mean()
         df_single['cmgap'] = (df_single['cm5'] - df_single['cm20'])/df_single['cm5']
 
@@ -1216,8 +1241,21 @@ def getAllCCBmin1A():
         df_single['cllv60'] = df_single['low'].rolling(60).min()
         df_single['ccp60'] = df_single.apply(lambda x: (x['close']-x['cllv60'])/(x['chhv60']-x['cllv60']), axis=1)
 
+        df_single['bossm10'] = df_single['boss'].rolling(10).mean()
         df_single['ccbm5'] = df_single['ccb'].rolling(5).mean()
+        # df_single['ccbm10'] = df_single['ccb'].rolling(10).mean()
         df_single['ccbm20'] = df_single['ccb'].rolling(20).mean()
+
+        df_single.loc[(df_single['close']>df_single['close'].shift(1)) & (df_single['boss']>df_single['boss'].shift(1)), 'upp'] = df_single['boss']
+        df_single.loc[(df_single['close']<df_single['close'].shift(1)) & (df_single['boss']<df_single['boss'].shift(1)), 'dww'] = df_single['boss']
+        df_single.loc[(df_single['close']>df_single['cm10']) & (df_single['upp'].notnull()), 'bossup'] = 1
+        df_single.loc[(df_single['close']<df_single['cm10']) & (df_single['dww'].notnull()), 'bossdw'] = 1
+        df_single['bossflag'] = df_single.apply(lambda x: 1 if x['bossup'] == 1 else (-1 if x['bossdw'] == 1 else np.nan), axis=1)
+        df_single['bossflag'] = df_single['bossflag'].ffill()
+        df_single.loc[(df_single['bossflag']==1) & (df_single['bossflag'].shift(1)==-1), 'bosssigup'] = df_single['close']
+        df_single.loc[(df_single['bossflag']==-1) & (df_single['bossflag'].shift(1)==1), 'bosssigdw'] = df_single['close']
+
+
         df_single['ccbmgap'] = (df_single['ccbm5'] - df_single['ccbm20'])/df_single['ccbm5']
 
         df_single.loc[df_single['cmgap']<0,'cmark'] = -1
@@ -1242,7 +1280,7 @@ def getAllCCBmin1A():
         df_all = pd.concat([df_all, df_single])
 
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbh', 'ccbl','ccbo', 'close', 'high', 'low','open','volume','ccbm5','ccbm20',
-               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2','crossup','crossdw','up3','dw3'], dropna=False)
+               'gap','gapSig','cm5','cm20','cmgap','ccp60','ccbcp60','ccbgap','ccbgapm20','ccbmgap','up2','dw2','crossup','crossdw','up3','dw3','bosssigup','bosssigdw','boss'], dropna=False)
     df_pivot.reset_index(drop=False,inplace=True)
 
     df_pivot['time'] = df_pivot[('datetime','')].apply(lambda x: x.split(' ')[1])
@@ -1274,8 +1312,6 @@ def getAllCCBmin1A():
 
     for x,k in zip(ax,  etf_dict.keys()):
 
-
-
         dftemp = df_pivot[[('index', ''), ('open', k), ('close', k), ('high', k), ('low', k)]]
         dftemp.columns = ['index', 'open', 'close', 'high', 'low']
 
@@ -1284,11 +1320,14 @@ def getAllCCBmin1A():
         x.add_collection(line_seg2)
         x.add_collection(line_seg3)
 
+        x.scatter(df_pivot.index, df_pivot[('bosssigup', k)], s=36, c='r', marker='o', alpha=0.8, zorder=-30)
+        x.scatter(df_pivot.index, df_pivot[('bosssigdw', k)], s=36, c='g', marker='o', alpha=0.8, zorder=-30)
+        x.scatter(df_pivot.index, df_pivot[('crossup', k)], s=25, c='r', marker='D', alpha=0.8,zorder=-10)
+        x.scatter(df_pivot.index, df_pivot[('crossdw', k)], s=25, c='g', marker='D', alpha=0.8,zorder=-10)
+
         x.plot(df_pivot.index, df_pivot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
         x.plot(df_pivot.index, df_pivot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='-.', color='red', alpha=1.)
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
-        x.scatter(df_pivot.index, df_pivot[('crossup', k)], s=25, c='r', marker='D', alpha=0.8,zorder=-10)
-        x.scatter(df_pivot.index, df_pivot[('crossdw', k)], s=25, c='g', marker='D', alpha=0.8,zorder=-10)
 
         x3 = x.twinx()
         # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
@@ -1305,17 +1344,19 @@ def getAllCCBmin1A():
         x3.hlines(-1 * float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet',
                   linewidth=0.5, alpha=1.0, zorder=-25)
         x3.set_ylim(-10, 10)
+        x3.set_yticks([])
         # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
         # x3.plot(df_pivot.index, df_pivot[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
         x4 = x.twinx()
-        df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
-        df_tmp.columns = ['close', 'high', 'low', 'open']
-        ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
-        x4.add_collection(ccbline_seg1)
-        x4.add_collection(ccbline_seg2)
-        x4.add_collection(ccbbar_segments)
-        x4.plot(df_pivot.index, df_pivot[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
+        # df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
+        # df_tmp.columns = ['close', 'high', 'low', 'open']
+        # ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
+        # x4.add_collection(ccbline_seg1)
+        # x4.add_collection(ccbline_seg2)
+        # x4.add_collection(ccbbar_segments)
+        x4.plot(df_pivot.index, df_pivot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
+        # x4.plot(df_pivot.index, df_pivot[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
         x4.plot(df_pivot.index, df_pivot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
         x4.set_yticks([])
 
@@ -1323,21 +1364,8 @@ def getAllCCBmin1A():
         x5.bar(df_pivot.index, df_pivot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
         x5.set_yticks([])
 
-        # x5 = x.twinx()
-        # # x5.plot(df_pivot.index,df_pivot[('ccbgap',k)],  color='blue',linewidth=1.0,linestyle='-')  #marker='.',
-        # # x5.plot(df_pivot.index,df_pivot[('ccbgapm20',k)], color='blue',linestyle='-', linewidth=0.6)
-        # x5.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.7,zorder=-30)
-        # x5.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.7,zorder=-30)
-        # x5.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
-        # x5.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
-        # # x5.set_ylim(-2,2)
-        # x5.set_yticks([])
-
-        # x6 = x.twinx()
-        # x6.plot(df_pivot.index,df_pivot[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
-        # x6.plot(df_pivot.index,df_pivot[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
-        # x6.hlines(float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        # x6.hlines(-1* float(etf_threshold[k]), xmin=df_pivot.index.min(), xmax=df_pivot.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
+        x6 = x.twinx()
+        x6.plot(df_pivot.index, df_pivot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
         # x6.set_yticks([])
 
         x.legend(loc='upper left')
@@ -1511,6 +1539,25 @@ def getAllCCBmin5B():
 
     return df_pivot
 
+
+def getBKZjlxRT(bkcode):
+
+    url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.' + bkcode + \
+          '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_=1615545163206'
+    res = requests.get(url)
+
+    try:
+        data1 = json.loads(res.text[42:-2])['data']['klines']
+    except:
+        return pd.DataFrame({'datetime':['2000-01-01'], 'boss':[0]})
+    min = pd.DataFrame([i.split(',') for i in data1],columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
+    min.drop(labels=['small','med','big','huge'],axis=1,inplace=True)
+    # min['time'] = min['time'].astype('datetime64[ns]')
+    min['boss'] = min['boss'].astype('float')/100000000
+
+    return min
+
+
 def drawAllCCBmin1A5B():
     global tdxdata
 
@@ -1539,6 +1586,7 @@ def drawAllCCBmin1A5B():
     # 5分钟画图
     for x,k in zip(ax[:,:1].tolist(),  etf_dict.keys()):
         x  = x[0]
+
         dftemp = df_5min[[('index', ''), ('open', k), ('close', k), ('high', k), ('low', k)]]
         dftemp.columns = ['index', 'open', 'close', 'high', 'low']
         line_seg1, line_seg2, line_seg3 = construct_ohlc_collections(dftemp, wid=0.4)
@@ -1590,6 +1638,8 @@ def drawAllCCBmin1A5B():
     for x,k in zip(ax[:,1:],  etf_dict.keys()):
         x = x[0]
 
+        x.scatter(df_1min.index, df_1min[('bosssigup', k)], s=36, c='r', marker='o', alpha=0.8, zorder=-30)
+        x.scatter(df_1min.index, df_1min[('bosssigdw', k)], s=36, c='g', marker='o', alpha=0.8, zorder=-30)
         dftemp = df_1min[[('index', ''), ('open', k), ('close', k), ('high', k), ('low', k)]]
         dftemp.columns = ['index', 'open', 'close', 'high', 'low']
         line_seg1, line_seg2, line_seg3 = construct_ohlc_collections(dftemp, wid=0.4)
@@ -1608,14 +1658,15 @@ def drawAllCCBmin1A5B():
         # x.vlines(openbar, ymin=df_1min[('close', k)].min(), ymax=df_1min[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x2 = x.twinx()
-        df_tmp = df_1min[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
-        df_tmp.columns = ['close', 'high', 'low', 'open']
-        ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
-        x2.add_collection(ccbline_seg1)
-        x2.add_collection(ccbline_seg2)
-        x2.add_collection(ccbbar_segments)
-        x2.plot(df_1min.index, df_1min[('ccbm5', k)], label='ma5', linewidth=0.9, linestyle='dotted', color='green')
-        x2.plot(df_1min.index, df_1min[('ccbm20', k)], label='ma20', linewidth=0.6, linestyle='-.', color='green')
+        # df_tmp = df_1min[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
+        # df_tmp.columns = ['close', 'high', 'low', 'open']
+        # ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
+        # x2.add_collection(ccbline_seg1)
+        # x2.add_collection(ccbline_seg2)
+        # x2.add_collection(ccbbar_segments)
+        x2.plot(df_1min.index, df_1min[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
+        # x2.plot(df_1min.index, df_1min[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
+        x2.plot(df_1min.index, df_1min[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
         x2.set_yticks([])
 
         x3 = x.twinx()
@@ -1637,12 +1688,9 @@ def drawAllCCBmin1A5B():
         x4 = x.twinx()
         x4.bar(df_1min.index, df_1min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
         x4.set_yticks([])
-        # x6 = x.twinx()
-        # x6.plot(df_1min.index,df_1min[('gap',k)], linewidth=0.5, color='violet',linestyle='-',zorder=-28,alpha=1)
-        # x6.plot(df_1min.index,df_1min[('gapSig',k)], linewidth=3, color='violet', zorder=-30,alpha=1)
-        # x6.hlines(float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        # x6.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
-        # x6.set_yticks([])
+
+        x6 = x.twinx()
+        x6.plot(df_1min.index, df_1min[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
 
         x.legend(loc='upper left')
         x3.legend(loc='center left')
@@ -1791,7 +1839,7 @@ def main():
         plotAllzjlx()
 
         return
-    except Exception as e: 
+    except Exception as e:
         logger.info('exception msg: '+ str(e))
         logger.info(' *****  exception, recreate tdxdata then restart main ***** ')
         tdxdata.api.close()
@@ -1807,7 +1855,7 @@ if __name__ == '__main__':
     logger.info('-------------------------------------------')
     logger.info('Job start !!! ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
 
-    cfg_fn = 'monitor_v2.6.cfg'
+    cfg_fn = 'monitor_v2.7.cfg'
     config = configparser.ConfigParser()
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
