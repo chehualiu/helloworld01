@@ -704,7 +704,7 @@ def getNorthdata():
         return pd.DataFrame()
     except requests.exceptions.RequestException as e:
         logger.error(f"getNorthdata() error check proxy: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame({'north':[0],'northdelta':[0]})
     min = pd.DataFrame(data1,columns=['north'])
     # min.reset_index(drop=True, inplace=True)
     min['northdelta'] = min['north'] - min['north'].shift(1)
@@ -864,7 +864,7 @@ def MINgetZjlxDP():
     min['time'] = min['time'].astype('datetime64[ns]')
     min['boss'] = min['boss'].astype('float')
     min['net'] = min['boss'] - min['boss'].shift(1)
-    min['bossma5'] = min['net'].rolling(5).mean()
+    min['bossma5'] = min['boss'].rolling(5).mean()
 
     return min
 
@@ -903,7 +903,7 @@ def calAmtFactor(n):
 
 
 def plotAllzjlx():
-    df_north = getNorthdata()
+    # df_north = getNorthdata()
     # df_south = getSouthzjlx()
     # df_southNorth = pd.merge(df_north, df_south, left_index=True, right_index=True)
     hs300_zjlx = getHS300zjlx()  # zjlxdelta
@@ -916,13 +916,14 @@ def plotAllzjlx():
 
     dp_boss = dp_zjlx.boss.values[-1]/100000000
     # north_amt = df_north.north.values[-1]
-    north_amt = df_north.north.values[-1]/100000000
+    # north_amt = df_north.north.values[-1]/100000000
     hs300_boss = hs300_zjlx.boss.values[-1]
     upcnt = hs300_index.upcnt.ffill().values[-1]
     # df_dp = pd.merge(df_north, dp_zjlx, left_index=True, right_index=True)
     # df_dp = pd.merge(df_southNorth, dp_zjlx, left_index=True, right_index=True)
-    df_dp = pd.merge(df_north, dp_zjlx, left_index=True, right_index=True)
-    df_dp = pd.merge(df_dp, dp_index, left_index=True, right_index=True)
+    # df_dp = pd.merge(dp_zjlx, df_north, left_index=True, right_index=True,how='left')
+    df_dp = pd.merge(dp_zjlx, dp_index, left_index=True, right_index=True)
+    # df_dp = pd.merge(df_dp, dp_index, left_index=True, right_index=True)
 
     dp_h = max(dp_preclose, dp_index.close.max())
     dp_l = min(dp_preclose, dp_index.close.min())
@@ -1014,7 +1015,7 @@ def plotAllzjlx():
 
     ax2b = ax2.twinx()
     ax2c = ax2.twinx()
-    ax2d = ax2.twinx()
+    # ax2d = ax2.twinx()
 
     df_dp.plot(x='index', y='close', label='dp', linewidth=1, color='red', ax=ax1,zorder=10)
     df_dp.plot(x='index', y='avg', linewidth=1, markersize=10, color='violet', label='avg', ax=ax1,zorder=11)
@@ -1022,15 +1023,14 @@ def plotAllzjlx():
     ax1.scatter(df_dp.index, df_dp['dw'], marker='v',s=100, c='green',alpha=0.5)
     ax1.scatter(df_dp.index, df_dp['crossup'], marker='D', s=36, c='red',alpha=0.4)
     ax1.scatter(df_dp.index, df_dp['crossdw'], marker='D',s=36, c='green',alpha=0.5)
-
     ax1.hlines(y=dp_preclose, xmin=0, xmax=240-3, colors='aqua', linestyles='-', lw=2, label='preclose')
 
-    ax1b.bar(df_dp.index, df_dp.net, label='dpzjlx', color='blue', alpha=0.2, zorder=-15)
+    ax1b.plot(df_dp.index, df_dp.boss, label='zjlx', color='blue', linewidth=1, alpha=0.7)
+    # ax1b.plot(df_dp.index, df_dp.bossma5, color='blue',linewidth=0.7, linestyle='--', alpha=0.7)
+    # ax1b.bar(df_dp.index, df_dp.net, label='dpzjlx', color='blue', alpha=0.2, zorder=-15)
     # ax1c.bar(df_dp.index, df_dp.northdelta, label='north', color='grey', alpha=0.5, zorder=-14)
     ax1c.bar(df_dp.index, df_dp.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
-    ax1b.plot(df_dp.index, df_dp.bossma5, label='zjlxma5', color='blue', lw=0.5)
-
-    ax1c.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
+    # ax1c.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
     ax1d.plot(df_dp.index, df_dp.amttrend, label='amttrend', color='green', lw=1.5, alpha=0.5)
     ax1.text(0.5,0.90,f'大盘主力资金(蓝柱):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿',
              horizontalalignment='center',transform=ax1.transAxes, fontsize=12, fontweight='bold', color='black')
@@ -1047,14 +1047,14 @@ def plotAllzjlx():
     # ax2b.plot(df_hs300.index, df_hs300.bossma5, label='zjlxm5', color='blue', lw=0.5)
     ax2b.plot(df_hs300.index, df_hs300.boss, label='hs300boss', color='blue', lw=0.8, zorder=-17,alpha=0.8)
     ax2c.plot(df_hs300.index, df_hs300.upcnt, label='upcnt', color='green', lw=1.5,alpha=0.5 )
-    ax2d.bar(df_dp.index, df_dp.northdelta, label=None, color='blue', alpha=0.2, zorder=-14)
-    ax2d.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
-    ax2.text(0.5,0.90, f'HS300 主力流入(蓝线):{hs300_boss:.0f}亿 北向流入(蓝柱):{north_amt:.1f}亿 上涨数(绿线): {upcnt:.0f}',
+    # ax2d.bar(df_dp.index, df_dp.northdelta, label=None, color='blue', alpha=0.2, zorder=-14)
+    # ax2d.hlines(y=0, xmin=0, xmax=240-3, colors='black', linestyles='-', lw=0.3)
+    ax2.text(0.5,0.90, f'HS300 主力流入(蓝线):{hs300_boss:.0f}亿 上涨数(绿线): {upcnt:.0f}',
              horizontalalignment='center',transform=ax2.transAxes, fontsize=12, fontweight='bold', color='black')
     ax1b.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
     ax1c.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
     ax2b.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
-    ax2d.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
+    # ax2d.tick_params(top=False, bottom=False, left=False, right=False, labelleft=False, labelbottom=False, labelright=False)
 
     func1 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x,(x/dp_preclose-1)*100)
     ax1.yaxis.set_major_formatter(mtick.FuncFormatter(func1))
@@ -1072,7 +1072,7 @@ def plotAllzjlx():
     plt.suptitle('DP HS300 - 时间戳 ' + datetime.datetime.now().strftime('%Y%m%d_%H:%M:%S'))
     plt.tight_layout()
 
-    plt.savefig('output\\持续监控DP_HS300_v2.6_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
+    plt.savefig('output\\持续监控DP_HS300_v2.7_'+ datetime.datetime.now().strftime('%Y%m%d') + '.png' )
 
     fig.clf()
     plt.close(fig)
@@ -1382,7 +1382,7 @@ def getAllCCBmin1A():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.6, y=0.98)
-    plt.savefig('output\\持续监控ETF1分钟_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1分钟_v2.7_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
@@ -1527,7 +1527,7 @@ def getAllCCBmin5B():
     plt.tight_layout()
     plt.suptitle(f'{df_pivot[("datetime","")].values[-1][-11:]}',x=0.6, y=0.98)
 
-    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF期权5分钟监控_v2.7_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
     fig.clf()
     plt.close(fig)
 
@@ -1711,7 +1711,7 @@ def drawAllCCBmin1A5B():
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.35, y=0.98)
-    plt.savefig('output\\持续监控ETF1A5B_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+    plt.savefig('output\\持续监控ETF1A5B_v2.7_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
     fig.clf()
     plt.close(fig)
@@ -1803,7 +1803,7 @@ def drawAllCCBmin1A5B():
 
         plt.tight_layout()
         plt.suptitle(lastBar, x=0.5, y=0.98)
-        plt.savefig('output\\持续监控ETF日Km5K_v2.6_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
+        plt.savefig('output\\持续监控ETF日Km5K_v2.7_' + datetime.datetime.now().strftime('%Y%m%d') + '.png')
 
         fig.clf()
         plt.close(fig)
