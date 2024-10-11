@@ -639,77 +639,6 @@ def readDapanData(startdate,enddate):
 
     return df_sh,df_sz
 
-def getSouthzjlx():
-
-    url = 'https://push2.eastmoney.com/api/qt/kamtbs.rtmin/get?'
-
-    params={
-        'cb': 'jQuery11230987190397908317_1725940063923',
-        'fields1': 'f1,f2,f3,f4',
-        'fields2': 'f51,f54,f52,f58,f53,f62,f56,f57,f60,f61',
-        'ut': 'b2884a393a59ad64002292a3e90d46a5',
-        '_': '1725940063945',
-    }
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-        'Referer': 'https://data.eastmoney.com/hsgt/hsgtV2.html',
-        # 'Accept-Encoding': 'gzip, deflate,br,zstd',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Connection': 'keep-alive',
-        'Host': 'push2.eastmoney.com'}
-
-    res = requests.get(url=url,params=params,headers=headers)
-
-    try:
-        data1 = json.loads(res.text[41:-2])['data']['n2s']
-    except:
-        return pd.DataFrame()
-    min = pd.DataFrame([i.split(',') for i in data1],columns=['time', 'hgtnet', 'hgtin', 'sgtnet', 'hgtout', 'south', 'sgtin','sgtout', 'northin', 'northout'])
-    min = min[30:]
-    min.reset_index(drop=True, inplace=True)
-    min.drop(labels=['time', 'hgtnet', 'hgtin', 'sgtnet', 'hgtout', 'sgtin','sgtout', 'northin', 'northout'],axis=1,inplace=True)
-    min = min[min['south']!='-']
-    min['south'] = min['south'].astype('float')/10000
-    min['southdelta'] = min['south'] - min['south'].shift(1)
-
-    return min
-
-def getNorthdata():
-
-    url = 'https://dataq.10jqka.com.cn/fetch-data-server/fetch/v1/interval_data'
-
-    params={ }
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
-        'Referer': 'https://data.eastmoney.com/hsgt/hsgtV2.html',
-        'Content-Type': 'application/json;charset=utf-8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
-        'Connection': 'keep-alive',
-        'Host': 'dataq.10jqka.com.cn'}
-
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    start = int(datetime.datetime.strptime(f'{today} 09:30', '%Y-%m-%d %H:%M').timestamp())    # "1728351000"
-    end = int(datetime.datetime.strptime(f'{today} 15:00', '%Y-%m-%d %H:%M').timestamp())
-    data = {"indexes":[{"codes":["48:883957"],"index_info":[{"index_id":"hsgt_main_money"}]}],
-            "time_range":{"time_type":"TREND", "start": start, "end": end}}
-
-    try:
-        res = requests.post(url=url, params=params, headers=headers, json=data, timeout=5)
-        data1 = json.loads(res.text)['data']['data'][0]['values'][0]['values']
-    except requests.exceptions.Timeout:
-        logger.error("getNorthdata() timed out. check proxy")
-        return pd.DataFrame()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"getNorthdata() error check proxy: {e}")
-        return pd.DataFrame({'north':[0],'northdelta':[0]})
-    min = pd.DataFrame(data1,columns=['north'])
-    # min.reset_index(drop=True, inplace=True)
-    min['northdelta'] = min['north'] - min['north'].shift(1)
-
-    return min
 
 def getHS300zjlx():
     url = 'https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?cb=jQuery112304151702712546592_1652363383462&lmt=0&klt=1'+ \
@@ -903,9 +832,7 @@ def calAmtFactor(n):
 
 
 def plotAllzjlx():
-    # df_north = getNorthdata()
-    # df_south = getSouthzjlx()
-    # df_southNorth = pd.merge(df_north, df_south, left_index=True, right_index=True)
+
     hs300_zjlx = getHS300zjlx()  # zjlxdelta
     hs300_index,hs_preclose = getETFindex('510300')  #   close
     if len(hs300_index) == 0:
@@ -1330,9 +1257,6 @@ def getAllCCBmin1A():
         x.vlines(openbar, ymin=df_pivot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
 
         x3 = x.twinx()
-        # x3.plot(df_pivot.index, df_pivot[('gap6sig', k)], label='6pulse', linewidth=0.7, color='black', alpha=1, zorder=-10)
-        # x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3,zorder=-30)
-        # x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3,zorder=-30)
         x3.scatter(df_pivot.index, df_pivot[('up2', k)], label='up',s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_pivot.index, df_pivot[('dw2', k)], label='dw',s=25, c='g', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_pivot.index, df_pivot[('up3', k)], s=25, c='r', marker='^', alpha=0.7,zorder=-10)
@@ -1345,18 +1269,9 @@ def getAllCCBmin1A():
                   linewidth=0.5, alpha=1.0, zorder=-25)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
-        # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
-        # x3.plot(df_pivot.index, df_pivot[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
         x4 = x.twinx()
-        # df_tmp = df_pivot[[('ccb', k), ('ccbh', k), ('ccbl', k), ('ccbo', k)]].copy()
-        # df_tmp.columns = ['close', 'high', 'low', 'open']
-        # ccbline_seg1, ccbline_seg2, ccbbar_segments = getKlineObjects(df_tmp, linewidths=1.2, bar_width=0.2)
-        # x4.add_collection(ccbline_seg1)
-        # x4.add_collection(ccbline_seg2)
-        # x4.add_collection(ccbbar_segments)
         x4.plot(df_pivot.index, df_pivot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
-        # x4.plot(df_pivot.index, df_pivot[('ccbm5', k)], linewidth=0.9, linestyle='dotted', color='green')
         x4.plot(df_pivot.index, df_pivot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
         x4.set_yticks([])
 
@@ -1503,11 +1418,6 @@ def getAllCCBmin5B():
         x2.set_yticks([])
 
         x3 = x.twinx()
-        # x3.plot(df_pivot.index, df_pivot[('ccbgap', k)], color='blue', linewidth=0.7, linestyle='-')  # marker='.',
-        # x3.plot(df_pivot.index, df_pivot[('ccbgapm10', k)], color='blue', linestyle='--', linewidth=0.5)
-        # x3.set_yticks([])
-        # x3.scatter(df_pivot.index, df_pivot[('up', k)], marker='^', s=36, c='red',alpha=0.3)
-        # x3.scatter(df_pivot.index, df_pivot[('dw', k)], marker='v',s=36, c='green',alpha=0.3)
         x3.scatter(df_pivot.index, df_pivot[('up2', k)], s=25, c='r', marker='s', alpha=0.3,zorder=-20)
         x3.scatter(df_pivot.index, df_pivot[('dw2', k)], s=25, c='g', marker='s', alpha=0.3,zorder=-20)
         # x3.set_ylim(-2, 2)
@@ -1682,8 +1592,6 @@ def drawAllCCBmin1A5B():
         x3.hlines(-1* float(etf_threshold[k]), xmin=df_1min.index.min(), xmax=df_1min.index.max(), color='violet', linewidth=0.5, alpha=1.0, zorder=-25)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
-        # x3.plot(df_1min.index, df_1min[('ccbgap', k)], label='cpgap', linewidth=0.7, linestyle='-', color='blue')
-        # x3.plot(df_1min.index, df_1min[('ccbgapm20', k)], label='cpgapma10', linewidth=0.7, linestyle='dotted', color='blue')
 
         x4 = x.twinx()
         x4.bar(df_1min.index, df_1min[('volume', k)], color='gray', alpha=0.3, zorder=-15)
