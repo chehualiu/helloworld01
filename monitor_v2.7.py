@@ -1231,11 +1231,11 @@ def getAllCCBmin1A():
         df_pivot.reset_index(drop=False, inplace=True)
         return df_pivot
 
-    fig, ax = plt.subplots(4, 1, figsize=(18,9), sharex=True)
+    fig, ax = plt.subplots(4, 1, figsize=(18,9))
 
     tickGap = 30
     xlables = [i[5:].replace('-','').replace(':','').replace(' ','_') for i in df_pivot[( 'datetime','')][::tickGap]]
-    plt.xticks(range(len(df_pivot))[::tickGap],xlables,rotation=90)
+    # plt.xticks(range(len(df_pivot))[::tickGap],xlables,rotation=90)
 
     for x,k in zip(ax,  etf_dict.keys()):
 
@@ -1293,7 +1293,8 @@ def getAllCCBmin1A():
         if k in png_dict.keys():
             x.text(0.25,0.9,  png_dict[k], horizontalalignment='center',transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
-        # x.text(0.1, 1., k, horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        x.set_xticks(range(len(df_pivot))[::tickGap])
+        x.set_xticklabels(xlables)
 
     plt.tight_layout()
     plt.suptitle(lastBar,x=0.6, y=0.98)
@@ -1802,10 +1803,10 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    # drawAllCCBmin1A5B()
+    drawAllCCBmin1A5B()
     # plotAllzjlx()
 
-    main()
+    # main()
 
     tdxdata.api.close()
     tdxdata.Exapi.close()
