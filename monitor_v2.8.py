@@ -934,7 +934,7 @@ def plotAll():
 
     plt.tight_layout()
     # plt.suptitle(timetitle,x=0.6, y=0.98)
-    plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
+    plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}.png')
     # plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
 
     fig.clf()
