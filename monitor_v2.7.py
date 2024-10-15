@@ -1803,10 +1803,10 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    drawAllCCBmin1A5B()
+    # drawAllCCBmin1A5B()
     # plotAllzjlx()
 
-    # main()
+    main()
 
     tdxdata.api.close()
     tdxdata.Exapi.close()
