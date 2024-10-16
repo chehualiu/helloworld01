@@ -795,6 +795,10 @@ def plotAll():
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
 
+    df_etf1min.reset_index(drop=False, inplace=True)
+    df_etf1min['datetime'] = df_etf1min['datetime'].apply(lambda x: x.replace('11:30','13:00'))
+    df_etf1min.set_index('datetime', inplace=True)
+
     df_all = pd.merge(df_dapan, df_etf1min, on='datetime', how='left')
 
     # for i in range(len(df_all)-1,len(df_all),1):
