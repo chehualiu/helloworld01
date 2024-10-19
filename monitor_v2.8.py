@@ -779,8 +779,8 @@ def getOptiondata():
         short_itm = max(0, shortrow['行权价'].values[0]-ETFprice)
         short_otm = df_opt['short'].values[-1] - short_itm
 
-        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm:.4f}+otm{long_otm:.4f}'''
-        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm:.4f}+otm{short_otm:.4f}'''
+        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm:.4f}+otm{long_otm:.4f}_总额{(df_long['long']*df_long['trade']).sum():.0f}万'''
+        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm:.4f}+otm{short_otm:.4f}_总额{(df_short['short']*df_short['trade']).sum():.0f}万'''
         new_optlist[k] = f'''{longtext}\n{shorttext}'''
 
 
