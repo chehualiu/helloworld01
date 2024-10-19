@@ -392,74 +392,6 @@ class mytdxData(object):
         df.reset_index(drop=True, inplace=True)
         return df
 
-class analyzer(object):
-
-    def __init__(self,df):
-        self.data = df
-
-    def six_pulse_excalibur(self):
-        df = self.data
-        HIGH = df['high'].values
-        LOW = df['low'].values
-        CLOSE = df['close'].values
-
-        DIFF = EMA(CLOSE, 8) - EMA(CLOSE, 13)
-        DEA = EMA(DIFF, 5)
-        ABC1 = DIFF > DEA
-
-        RSV1 = (CLOSE - LLV(LOW, 8)) / (HHV(HIGH, 8) - LLV(LOW, 8)) * 100
-        K = SMA(RSV1, 3, 1)
-        D = SMA(K, 3, 1)
-        ABC2=K>D
-
-        LC = REF(CLOSE, 1)
-        RSI1 = (SMA(MAX(CLOSE - LC, 0), 5, 1)) / (SMA(ABS(CLOSE - LC), 5, 1)) * 100
-        RSI2 = (SMA(MAX(CLOSE - LC, 0), 13, 1)) / (SMA(ABS(CLOSE - LC), 13, 1)) * 100
-        ABC3=RSI1>RSI2
-
-        RSV = -(HHV(HIGH, 13) - CLOSE) / (HHV(HIGH, 13) - LLV(LOW, 13)) * 100
-        LWR1 = SMA(RSV, 3, 1)
-        LWR2 = SMA(LWR1, 3, 1)
-        ABC4=LWR1>LWR2
-
-        BBI = (MA(CLOSE, 3) + MA(CLOSE, 6) + MA(CLOSE, 12) + MA(CLOSE, 24)) / 4
-        ABC5=CLOSE>BBI
-
-        MTM = CLOSE - REF(CLOSE, 1)
-        MMS = 100 * EMA(EMA(MTM, 5), 3) / EMA(EMA(ABS(MTM), 5), 3)
-        MMM = 100 * EMA(EMA(MTM, 13), 8) / EMA(EMA(ABS(MTM), 13), 8)
-        ABC6=MMS>MMM
-
-        df['condmacd'] = [1 if i == True else 0 for i in ABC1]
-        df['conddkj'] = [1 if i == True else 0 for i in ABC2]
-        df['condrsi'] = [1 if i == True else 0 for i in ABC3]
-        df['condbbi'] = [1 if i == True else 0 for i in ABC4]
-        df['condlwr'] = [1 if i == True else 0 for i in ABC5]
-        df['condmtm'] = [1 if i == True else 0 for i in ABC6]
-
-        df1 = df[['condmacd', 'conddkj', 'condrsi', 'condbbi', 'condlwr', 'condmtm']]  # ,'mean_30_mean_60']]
-        # df['score'] = df1.sum(axis=1).tolist()
-
-        return df1.sum(axis=1).tolist()
-
-    def get_kline_data(self,code, backset=0, klines=200, period=9):
-        df=self.fuquan202409(code, backset, klines, period)
-
-        if len(df)==0:
-            return pd.DataFrame()
-
-        if '成交额' not in df.columns:
-            df.rename(columns={'vol': 'volume', 'amount': '成交额'}, inplace=True)
-            df['preclose'] = df['close'].shift(1)
-            df['振幅'] = df.apply(lambda x: (x['high'] - x['low']) / x['preclose'], axis=1)
-            df['涨跌幅'] = df.apply(lambda x: x['close'] / x['preclose'] - 1, axis=1)
-        df.dropna(subset=['preclose'],inplace=True)
-        for col in self.useless_cols:
-            if col in df.columns:
-                del df[col]
-        df.reset_index(drop=True, inplace=True)
-        return df
-
 def getOptionsTformat(df_4T):
 
     field_map3 = {'f14':'Cname','f12':'Ccode','f2':'Cprice', 'f3':'CpctChg','f4':'C涨跌额','f108':'C持仓量','f5':'Cvol','f249':'Civ','f250':'C折溢价率','f161':'行权价',
@@ -747,17 +679,15 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
         return
     # df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30') if x[-5:]=='13:00' else x)
     df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30'))
-    # df_single['c6sig'] = six_pulse_excalibur(df_single)
 
     ccbcode = etf_ccb_dict[name]
     df_ccb =  tdxData.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
     if len(df_ccb)==0:
         print('getSingleCCBData {code} ccb error, quitting')
         return
-    # df_ccb['ccb6sig'] = six_pulse_excalibur(df_ccb)
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
     data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low','volume']], on='datetime',how='left')
-    # data['gap6sig'] = data.apply(lambda x: x['c6sig']-x['ccb6sig'], axis=1)
+
 
     return data
 
@@ -966,7 +896,7 @@ def plot_morning(df):
     ax00d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
     ax00d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
     ax00d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax00d.plot(df_plot.index, df_plot.dp_6sig-3, color='darkviolet', lw=1, alpha=0.5)
+
     ax00d.set_ylim(-10, 10)
     ax00d.set_yticks([])
 
@@ -1000,7 +930,6 @@ def plot_morning(df):
     ax01d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
     ax01d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
     ax01d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax01d.plot(df_plot.index, df_plot.dp_6sig-3, label='六脉', color='darkviolet', lw=1, alpha=0.5)
     ax01d.set_ylim(-10, 10)
     ax01d.set_yticks([])
 
@@ -1056,7 +985,6 @@ def plot_morning(df):
         x3.scatter(df_plot.index, df_plot[f'crossup_{k}'], label='底部涨',s=16, c='r', marker='D', alpha=0.7,zorder=-10)
         x3.scatter(df_plot.index, df_plot[f'crossdw_{k}'], label='顶部跌',s=16, c='g', marker='D', alpha=0.7,zorder=-10)
         x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k',linewidth=0.5, alpha=0.6, zorder=-25)
-        x3.plot(df_plot.index, df_plot[f'{k}_6sig'] - 3, color='darkviolet', lw=1, alpha=0.5)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
 
@@ -1148,7 +1076,6 @@ def plot_fullday(df):
     ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=25, c='red', alpha=0.7)
     ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=25, c='green', alpha=0.8)
     ax0e.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax0e.plot(df_plot.index, df_plot.dp_6sig-3, color='darkviolet', lw=1, alpha=0.5)
     ax0e.set_ylim(-10, 10)
     ax0e.set_yticks([])
     axes[0].text(0.5, 1.02, f'大盘资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿  {timetitle}',
@@ -1208,7 +1135,6 @@ def plot_fullday(df):
         x3.scatter(df_plot.index, df_plot[f'crossdw_{k}'], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
         x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6,
                   zorder=-25)
-        x3.plot(df_plot.index, df_plot[f'{k}_6sig']-3, color='darkviolet', lw=1, alpha=0.5)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
 
@@ -1258,11 +1184,6 @@ def plotAll():
     # df_etf1min.set_index('datetime', inplace=True)
 
     df_all = pd.merge(df_dapan, df_etf1min, on='datetime', how='left')
-    df_all['dp_6sig'] = analyzer(df_all).six_pulse_excalibur()
-    for k, v in etf_dict2.items():
-        tmp = df_all[['datetime', ('close',k), ('high',k),('low',k),('open',k),('preclose',k)]]
-        tmp.columns = ['datetime','close', 'high', 'low', 'open', 'preclose']
-        df_all[f'{k}_6sig'] = analyzer(tmp).six_pulse_excalibur()
 
     #for n in range(239,240,1):
     if True:
