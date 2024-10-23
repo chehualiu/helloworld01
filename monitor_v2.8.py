@@ -750,6 +750,17 @@ def getOptiondata():
         shortrow = df_optlist.loc[df_optlist['code']==optShortCode]
         
         df_long = tdxdata.get_kline_data(optLongCode, backset=backset, klines=klines, period=period)
+
+
+        df_long['cp30'] = (df_long['close'] - df_long['close'].rolling(30).min()) / (
+                    df_long['close'].rolling(30).max() - df_long['close'].rolling(30).min())
+        df_long['cp60'] = (df_long['close'] - df_long['close'].rolling(60).min()) / (
+                    df_long['close'].rolling(60,min_periods=31).max() - df_long['close'].rolling(60,min_periods=31).min())
+        df_long['cm10'] = df_long['close'].rolling(10).mean()
+        df_long['cm20'] = df_long['close'].rolling(20).mean()
+        df_long['cabovem10'] = df_long['close'] > df_long['cm10']
+
+
         df_long['longm20'] = df_long['close'].rolling(20).mean()
         tmp = df_long[df_long['datetime'].str.contains('15:00')]
         if '15:00' in df_long['datetime'].values[-1]:
@@ -758,7 +769,34 @@ def getOptiondata():
             preidx = tmp.index[-1]
         df_long = df_long.iloc[preidx:]
 
+        preclose_long = df_long['close'].values[0]
+        k_h = max(preclose_long, df_long['high'].max())
+        k_l = min(preclose_long, df_long['low'].min())
+        k_hh = k_l + (k_h - k_l) * 7.5 / 8
+        k_ll = k_l + (k_h - k_l) * 0.5 / 8
+        df_long['Long_crossdw'] = np.nan
+        df_long['Long_crossup'] = np.nan
+        df_long.loc[(df_long['close'] < k_hh) & (df_long['close'].shift(1) > k_hh), 'Long_crossdw'] = preclose_long
+        df_long.loc[(df_long['close'] > k_ll) & (df_long['close'].shift(1) < k_ll), 'Long_crossup'] = preclose_long
+
+
+        df_long.loc[(df_long['cp30'] < 0.3) & (df_long['cp60'] < 0.3) & (df_long['cabovem10'] == True) & \
+                  (df_long['close'] > df_long['close'].shift(1)), 'Long_pivotup'] =preclose_long
+        df_long.loc[(df_long['cp30'] > 0.7) & (df_long['cp60'] > 0.7) & (df_long['cabovem10'] == False) & \
+                  (df_long['close'] < df_long['close'].shift(1)), 'Long_pivotdw'] = preclose_long
+
+
         df_short = tdxdata.get_kline_data(optShortCode, backset=backset, klines=klines, period=period)
+
+        df_short['cp30'] = (df_short['close'] - df_short['close'].rolling(30).min()) / (
+                    df_short['close'].rolling(30).max() - df_short['close'].rolling(30).min())
+        df_short['cp60'] = (df_short['close'] - df_short['close'].rolling(60).min()) / (
+                    df_short['close'].rolling(60,min_periods=31).max() - df_short['close'].rolling(60,min_periods=31).min())
+        df_short['cm10'] = df_short['close'].rolling(10).mean()
+        df_short['cm20'] = df_short['close'].rolling(20).mean()
+        df_short['cabovem10'] = df_short['close'] > df_short['cm10']
+
+
         df_short['shortm20'] = df_short['close'].rolling(20).mean()
         tmp = df_short[df_short['datetime'].str.contains('15:00')]
         if '15:00' in df_short['datetime'].values[-1]:
@@ -767,9 +805,25 @@ def getOptiondata():
             preidx = tmp.index[-1]
         df_short = df_short.iloc[preidx:]
 
+        preclose_short = df_short['close'].values[0]
+        k_h = max(preclose_short, df_short['high'].max())
+        k_l = min(preclose_short, df_short['low'].min())
+        k_hh = k_l + (k_h - k_l) * 7.5 / 8
+        k_ll = k_l + (k_h - k_l) * 0.5 / 8
+        df_short['Short_crossdw'] = np.nan
+        df_short['Short_crossup'] = np.nan
+        df_short.loc[(df_short['close'] < k_hh) & (df_short['close'].shift(1) > k_hh), 'Short_crossdw'] = preclose_short
+        df_short.loc[(df_short['close'] > k_ll) & (df_short['close'].shift(1) < k_ll), 'Short_crossup'] = preclose_short
+
+        df_short.loc[(df_short['cp30'] < 0.3) & (df_short['cp60'] < 0.3) & (df_short['cabovem10'] == True) & \
+                  (df_short['close'] > df_short['close'].shift(1)), 'Short_pivotup'] = preclose_short
+        df_short.loc[(df_short['cp30'] > 0.7) & (df_short['cp60'] > 0.7) & (df_short['cabovem10'] == False) & \
+                  (df_short['close'] < df_short['close'].shift(1)), 'Short_pivotdw'] = preclose_short
+
         df_long.rename(columns={'close':'long'}, inplace=True)
         df_short.rename(columns={'close':'short'}, inplace=True)
-        df_opt = pd.merge(df_long[['datetime','long','longm20']], df_short[['datetime','short','shortm20']], on='datetime',how='inner')
+        df_opt = pd.merge(df_long[['datetime','long','longm20','Long_crossdw', 'Long_crossup','Long_pivotup','Long_pivotdw']],
+                          df_short[['datetime','short','shortm20','Short_crossdw', 'Short_crossup','Short_pivotup','Short_pivotdw']], on='datetime',how='inner')
 
         df_opt['etf'] = k
         df_options = pd.concat([df_options, df_opt])
@@ -779,12 +833,14 @@ def getOptiondata():
         short_itm = max(0, shortrow['行权价'].values[0]-ETFprice)
         short_otm = df_opt['short'].values[-1] - short_itm
 
-        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm:.4f}+otm{long_otm:.4f}_总额{(df_long['long']*df_long['trade']).sum():.0f}万'''
-        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm:.4f}+otm{short_otm:.4f}_总额{(df_short['short']*df_short['trade']).sum():.0f}万'''
+        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm:.4f}+otm{long_otm:.4f}_金额:{(df_long['long']*df_long['trade']).sum():.0f}万'''
+        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm:.4f}+otm{short_otm:.4f}_金额:{(df_short['short']*df_short['trade']).sum():.0f}万'''
         new_optlist[k] = f'''{longtext}\n{shorttext}'''
 
 
-    opt_Pivot = df_options.pivot_table(index='datetime',columns='etf',values=['long', 'longm20','short','shortm20'], dropna=False)
+    opt_Pivot = df_options.pivot_table(index='datetime',columns='etf',values=['long', 'longm20','short','shortm20',
+                    'Long_crossdw', 'Long_crossup', 'Short_crossdw', 'Short_crossup',
+                    'Long_pivotup', 'Long_pivotdw', 'Short_pivotup', 'Short_pivotdw'], dropna=False)
 
     return opt_Pivot
 
@@ -1271,6 +1327,7 @@ def plot_options():
 
     timestamp = df_opt['datetime'].values[-1].replace('-','')
 
+
     if len(df_opt)<=120:
 
         maxx = 60 if len(df_opt)<45 else 120
@@ -1292,19 +1349,32 @@ def plot_options():
             else:
                 x = axes[1][1]
 
+            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
+            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
 
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+            x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
             x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
+
+            x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+            x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
             if k in png_dict.keys():
                 x.text(0.5, 0.95, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
+            x.text(0.6, 0.90, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center', transform=x.transAxes, fontsize=12,
+                   fontweight='bold', color='black')
 
             if i == 0:
                 x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx00))
@@ -1345,18 +1415,32 @@ def plot_options():
         for i, k in enumerate(etf_dict.keys()):
             x = axes[i]
 
+            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
+            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
+
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+
+            x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.7, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
             x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
+            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
+            x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.75, zorder=-10)
+            x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
             if k in png_dict.keys():
                 x.text(0.35, 0.92, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
+            x.text(0.8, 0.90, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center', transform=x.transAxes, fontsize=12,
+                   fontweight='bold', color='black')
 
             if i == 0:
                 x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx00))
