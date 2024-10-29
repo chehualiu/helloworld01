@@ -1293,19 +1293,21 @@ def plotAll():
 
 
         if len(df_temp) <= 120:
-            df_temp = pd.concat([pd.DataFrame([[]])*1,df_temp])
-            df_plot = pd.concat([df_temp, pd.DataFrame([[]] * (121 - len(df_temp)))])
+            df_temp2 = pd.concat([pd.DataFrame([[]])*1,df_temp])
+            df_plot = pd.concat([df_temp2, pd.DataFrame([[]] * (121 - len(df_temp2)))])
             plot_morning(df_plot)
         elif len(df_temp)>120 and len(df_temp)<=240:
-            df_temp = pd.concat([pd.DataFrame([[]])*1, df_temp])
-            df_plot = pd.concat([df_temp, pd.DataFrame([[]] * (241 - len(df_temp)))])
+            df_temp2 = pd.concat([pd.DataFrame([[]])*1, df_temp])
+            df_plot = pd.concat([df_temp2, pd.DataFrame([[]] * (241 - len(df_temp2)))])
             plot_fullday(df_plot)
         else:
             print('df>240')
 
+    return df_temp
+
 def plot_options():
 
-    global df_optlist, new_optlist
+    global df_optlist, new_optlist, df_full
 
     df_opt = getOptiondata()
     df_opt = df_opt#[:100]
@@ -1369,6 +1371,10 @@ def plot_options():
 
             x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
+
+            x2= x.twinx()
+            x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.set_yticks([])
 
             if k in png_dict.keys():
                 x.text(0.5, 0.95, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
@@ -1436,6 +1442,10 @@ def plot_options():
             x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.75, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
+            x2= x.twinx()
+            x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.set_yticks([])
+
             if k in png_dict.keys():
                 x.text(0.35, 0.92, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
@@ -1475,7 +1485,7 @@ def plot_options():
 
 def main():
 
-    global factor, dayr1,png_dict, tdxdata, df_optlist
+    global factor, dayr1,png_dict, tdxdata, df_optlist,df_full
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
         print('waiting market, sleep 40s')
@@ -1493,12 +1503,12 @@ def main():
                     png_dict,df_optlist = getMyOptions()
                 except:
                     png_dict = {}
-                plotAll()
+                df_full =plotAll()
                 if plotopt == 'Y':
                     plot_options()
                 time.sleep(30)
 
-        plotAll()
+        df_full =plotAll()
         if plotopt == 'Y':
             plot_options()
 
@@ -1556,7 +1566,7 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    # plotAll()
+    # df_full = plotAll()
     # if plotopt == 'Y':
     #     plot_options()
 
