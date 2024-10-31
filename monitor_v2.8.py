@@ -927,7 +927,7 @@ def plot_morning(df):
     else:
         maxx = 120
 
-    fig, axes = plt.subplots(3, 2, figsize=(16,10))
+    fig, axes = plt.subplots(3, 2, figsize=(14,10))
     for ax in axes[:,:1]:
         ax[0].set_xticks(np.arange(0, 121, 30))
         ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
@@ -1106,7 +1106,7 @@ def plot_fullday(df):
     else:
         maxx = 240
 
-    fig, axes = plt.subplots(5, 1, figsize=(12, 10.5))
+    fig, axes = plt.subplots(5, 1, figsize=(14, 10))
     for ax in axes:
         ax.set_xticks(np.arange(0, 241, 30))
         ax.set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
@@ -1284,9 +1284,9 @@ def plotAll():
             df_temp[f'avg_{k}'] = tmp[f'avg_{k}']
 
         seq = str(len(df_temp)).zfill(3)
-        ktime = df_temp['datetime'].values[-1][2:].replace('-','')
+        ktime = df_temp['datetime'].values[-1][2:].replace('-','').replace(' ','_')
         stamp = datetime.datetime.now().strftime('%H:%M:%S')
-        timetitle = f'K线:{ktime}  - 时间戳 {stamp}'
+        timetitle = f'{ktime}--时间戳 {stamp}'
 
         dp_boss = df_temp['boss'].ffill().values[-1]/100000000
         dp_amount = df_temp['amttrend'].ffill().values[-1]/100000000
@@ -1307,7 +1307,7 @@ def plotAll():
 
 def plot_options():
 
-    global df_optlist, new_optlist, df_full
+    global df_optlist, new_optlist, df_full, timetitle
 
     df_opt = getOptiondata()
     df_opt = df_opt#[:100]
@@ -1333,7 +1333,7 @@ def plot_options():
     if len(df_opt)<=120:
 
         maxx = 60 if len(df_opt)<45 else 120
-        fig, axes = plt.subplots(2, 2, figsize=(14, 8))
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
         for ax in axes[:, :1]:
             ax[0].set_xticks(np.arange(0, 121, 30))
             ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
@@ -1403,7 +1403,7 @@ def plot_options():
             x1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
 
         plt.tight_layout()
-        plt.suptitle(timestamp,x=0.5, y=0.99)
+        plt.suptitle(timetitle,x=0.5, y=1.0)
         plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_1H.png')
         # plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
 
@@ -1413,7 +1413,7 @@ def plot_options():
     else:
 
         maxx = 180 if len(df_opt) < 180 else 240
-        fig, axes = plt.subplots(4, 1, figsize=(12, 10))
+        fig, axes = plt.subplots(4, 1, figsize=(14, 10))
         for ax in axes:
             ax.set_xticks(np.arange(0, 241, 30))
             ax.set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
@@ -1473,7 +1473,7 @@ def plot_options():
             x1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
 
         plt.tight_layout()
-        plt.suptitle(timestamp,x=0.7, y=0.98)
+        plt.suptitle(timetitle,x=0.7, y=0.99)
         plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_2H.png')
         # plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
         fig.clf()
@@ -1488,16 +1488,16 @@ def main():
     global factor, dayr1,png_dict, tdxdata, df_optlist,df_full
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
-        print('waiting market, sleep 40s')
-        time.sleep(40)
+        print(f'waiting market, sleep {sleepsec*2}s')
+        time.sleep(sleepsec*2)
 
     try:
 
         while (time.strftime("%H%M", time.localtime())>='0930' and time.strftime("%H%M", time.localtime())<='1502'):
 
             if (time.strftime("%H%M", time.localtime())>'1130' and time.strftime("%H%M", time.localtime())<'1300'):
-                print('sleep 60s')
-                time.sleep(60)
+                print(f'sleep {sleepsec*2}s')
+                time.sleep(sleepsec*2)
             else:
                 try:
                     png_dict,df_optlist = getMyOptions()
@@ -1506,7 +1506,7 @@ def main():
                 df_full =plotAll()
                 if plotopt == 'Y':
                     plot_options()
-                time.sleep(30)
+                time.sleep(sleepsec)
 
         df_full =plotAll()
         if plotopt == 'Y':
@@ -1519,7 +1519,7 @@ def main():
         tdxdata.api.close()
         tdxdata.Exapi.close()
         tdxdata = mytdxData()
-        time.sleep(5)
+        time.sleep(10)
         main()
 
 
@@ -1543,6 +1543,7 @@ if __name__ == '__main__':
     kline_dict = dict(config.items('kline_dict'))
     kline_qty = dict(config.items('kline_qty'))
     backset = int(dict(config.items('backset'))['backset'])
+    sleepsec = int(dict(config.items('sleep'))['seconds'])
     png_dict = dict(config.items('png_dict'))
     etf_threshold = dict(config.items('etf_threshold'))
     opt_path = dict(config.items('path'))['opt_path']
