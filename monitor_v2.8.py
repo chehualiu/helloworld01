@@ -511,15 +511,15 @@ def getMyOptions():
         time_delta = current_datetime - modified_datetime
         gap_seconds = time_delta.days*24*3600 + time_delta.seconds
         if gap_seconds < 1000:
-            print('reusing option file')
+            print(f'{datetime.datetime.now().strftime("%m%d_%H:%M:%S")} reusing option file')
             data = pd.read_csv(opt_fn, encoding='gbk',dtype={'ETFcode':str,'code':str})
         else:
             try:
                 data = getAllOptionsV3()
-                print('New option file')
+                print(f'{datetime.datetime.now().strftime("%m%d_%H:%M:%S")} New option file')
                 data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')
             except:
-                print('update failed, reusing option file')
+                print(f'{datetime.datetime.now().strftime("%m%d_%H:%M:%S")} update failed, reusing option file')
                 data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
     else:
         print('New option file ' + opt_fn)
