@@ -527,14 +527,14 @@ def getMyOptions():
         data.to_csv(opt_fn,encoding='gbk',index=False, float_format='%.4f')
 
     data.fillna(0,inplace=True)
-    amtlist = data['amount'].values.tolist()
-    amtlist.sort()
-    amtthreshold = amtlist[-200]
-
-    data = data[data['amount']>amtthreshold]
+    # amtlist = data['amount'].values.tolist()
+    # amtlist.sort(ascending=False)
+    # amtthreshold = amtlist[200] if len(amtlist)>200 else amtlist[-1]
     data.sort_values(by='amount',ascending=False,inplace=True)
     data['itm'] = data.apply(lambda x: max(0,x.ETFprice-x['行权价']) if x.direction=='call' else max(0,x['行权价']-x.ETFprice),axis=1)
     data['otm'] = data.apply(lambda x: x.close-x.itm,axis=1)
+
+    # data2 = data[data['amount']>amtthreshold]
 
     png_dict = {}
     for key in etf_dict.keys():
