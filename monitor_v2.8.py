@@ -473,6 +473,8 @@ def getAllOptionsV3():
     data['close'] = data['close'].astype(float)
     data['到期日'] = data['到期日'].astype(str)
     data['行权pct'] = data.apply(lambda x:round(x['行权价']/x['ETFprice']*100-100,2),axis=1)
+    data['itm'] = data.apply(lambda x: max(0,x.ETFprice-x['行权价']) if x.direction=='call' else max(0,x['行权价']-x.ETFprice),axis=1)
+    data['otm'] = data.apply(lambda x: x.close-x.itm,axis=1)
 
     df_4T = data.pivot_table(index=['ETFcode','到期日'],values=['name'],aggfunc=['count']).reset_index()
     df_4T.columns = ['ETFcode','到期日','数量']
