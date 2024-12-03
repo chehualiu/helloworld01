@@ -496,7 +496,7 @@ def getAllOptionsV3():
     return data
 
 def getMyOptions():
-    global dte_high, dte_low,close_Threshold, opt_fn, tdxdata
+    global dte_high, dte_low,close_Threshold_min, close_Threshold_max,opt_fn, tdxdata
 
     # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
     now = tdxdata.get_kline_data('999999',0,20,8)
@@ -541,8 +541,13 @@ def getMyOptions():
     png_dict = {}
     for key in etf_dict.keys():
         etfcode = etfcode_dict[key]
-        call = data[(data['ETFcode']==etfcode) & (data['direction']=='call') & (data['dte']>dte_low) & (data['dte']<dte_high) & (data['close']>close_Threshold)][:1]
-        put = data[(data['ETFcode']==etfcode) & (data['direction']=='put') & (data['dte']>dte_low) & (data['dte']<dte_high) & (data['close']>close_Threshold)][:1]
+        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high) \
+                     & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max) & (data['amount']>0)]
+        tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15/2 if x<0.15 else 0.15/x*2)
+        tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['amount']
+        tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
+        call = tmpdf[(tmpdf['direction']=='call')][:1]
+        put = tmpdf[(tmpdf['direction']=='put')][:1]
         if len(call) == 0:
             tmpstr = '认购:流动性过滤为空   '
         else:
@@ -675,6 +680,8 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
     else:
         code = etf_dict2[name]
     df_single= tdxData.get_kline_data(code, backset=backset, klines=klines, period=period)
+    if '成交额' in df_single.columns:
+        df_single.rename(columns={'成交额':'amount'},inplace=True)
     df_single.reset_index(drop=True,inplace=True)
     if len(df_single)==0:
         print(f'getSingleCCBData {code} kline error,quitting')
@@ -688,7 +695,7 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
         print('getSingleCCBData {code} ccb error, quitting')
         return
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
-    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low','volume']], on='datetime',how='left')
+    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low','volume','amount']], on='datetime',how='left')
 
 
     return data
@@ -752,7 +759,7 @@ def getOptiondata():
         shortrow = df_optlist.loc[df_optlist['code']==optShortCode]
         
         df_long = tdxdata.get_kline_data(optLongCode, backset=backset, klines=klines, period=period)
-
+        # print(k,v,optLongCode, 'df_long len:', len(df_long))
 
         df_long['cp30'] = (df_long['close'] - df_long['close'].rolling(30).min()) / (
                     df_long['close'].rolling(30).max() - df_long['close'].rolling(30).min())
@@ -764,14 +771,18 @@ def getOptiondata():
 
 
         df_long['longm20'] = df_long['close'].rolling(20).mean()
-        tmp = df_long[df_long['datetime'].str.contains('15:00')]
-        if '15:00' in df_long['datetime'].values[-1]:
-            preidx = tmp.index[-2]
-        else:
-            preidx = tmp.index[-1]
-        df_long = df_long.iloc[preidx:]
 
-        preclose_long = df_long['close'].values[0]
+        if len(df_long)<=240:
+            preclose_long = df_long['close'].values[0]
+        else:
+            tmp = df_long[df_long['datetime'].str.contains('15:00')]
+            if '15:00' in df_long['datetime'].values[-1]:
+                preidx = tmp.index[-2]
+            else:
+                preidx = tmp.index[-1]
+            df_long = df_long.iloc[preidx:]
+            preclose_long = df_long['close'].values[0]
+
         k_h = max(preclose_long, df_long['high'].max())
         k_l = min(preclose_long, df_long['low'].min())
         k_hh = k_l + (k_h - k_l) * 7.5 / 8
@@ -789,7 +800,7 @@ def getOptiondata():
 
 
         df_short = tdxdata.get_kline_data(optShortCode, backset=backset, klines=klines, period=period)
-
+        # print(k, v, optShortCode, 'df_short len:', len(df_short))
         df_short['cp30'] = (df_short['close'] - df_short['close'].rolling(30).min()) / (
                     df_short['close'].rolling(30).max() - df_short['close'].rolling(30).min())
         df_short['cp60'] = (df_short['close'] - df_short['close'].rolling(60).min()) / (
@@ -800,14 +811,17 @@ def getOptiondata():
 
 
         df_short['shortm20'] = df_short['close'].rolling(20).mean()
-        tmp = df_short[df_short['datetime'].str.contains('15:00')]
-        if '15:00' in df_short['datetime'].values[-1]:
-            preidx = tmp.index[-2]
+        if len(df_short)<=240:
+            preclose_short = df_short['close'].values[0]
         else:
-            preidx = tmp.index[-1]
-        df_short = df_short.iloc[preidx:]
+            tmp = df_short[df_short['datetime'].str.contains('15:00')]
+            if '15:00' in df_short['datetime'].values[-1]:
+                preidx = tmp.index[-2]
+            else:
+                preidx = tmp.index[-1]
+            df_short = df_short.iloc[preidx:]
 
-        preclose_short = df_short['close'].values[0]
+            preclose_short = df_short['close'].values[0]
         k_h = max(preclose_short, df_short['high'].max())
         k_l = min(preclose_short, df_short['low'].min())
         k_hh = k_l + (k_h - k_l) * 7.5 / 8
@@ -911,12 +925,12 @@ def getETFdata():
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'close', 'high', 'low','open','preclose','volume',
-               'cm5','cm20','ccp60','pivotup','pivotdw','bosssigup','bosssigdw','boss'], dropna=False)
+               'cm5','cm20','ccp60','pivotup','pivotdw','bosssigup','bosssigdw','boss','amount'], dropna=False)
 
     return df_pivot
 
 def plot_morning(df):
-    global dp_boss, dp_amount, dp_preclose, timetitle,seq
+    global dp_boss, dp_amount,dp_amtcum, dp_bosspct,dp_preclose, timetitle,seq
 
     df_plot = df.copy()
     df_plot.reset_index(drop=True, inplace=True)
@@ -954,7 +968,7 @@ def plot_morning(df):
     ax00d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
     ax00d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
     ax00d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-
+    ax00d.plot(df_plot.index, df_plot.dpbosspct, color='k', linewidth=1, alpha=0.7)
     ax00d.set_ylim(-10, 10)
     ax00d.set_yticks([])
 
@@ -962,6 +976,8 @@ def plot_morning(df):
     axes[0][0].yaxis.set_major_formatter(mtick.FuncFormatter(func00))
 
     axes[0][0].text(0.5, 1.02, f' {timetitle}',
+             horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold', color='black')
+    axes[0][0].text(0.5, 0.95, f'主力资金:{dp_boss:.0f}亿 成交额:{dp_amtcum:.0f}亿 主力占比:{dp_bosspct:.1f}%',
              horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold', color='black')
 
     axes[0][0].minorticks_on()
@@ -1058,7 +1074,10 @@ def plot_morning(df):
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
         x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.4,zorder=-20)
-        # x6.set_yticks([])
+        x6.set_yticks([])
+
+        x7 = x.twinx()
+        x7.plot(df_plot.index, df_plot[f'bosspct_{k}'], linewidth=1, color='k')
 
         if int(seq) < 90:
             x.legend(loc='upper right',framealpha=0.1)
@@ -1083,6 +1102,9 @@ def plot_morning(df):
         if k in png_dict.keys():
             x.text(0.35,0.95,  png_dict[k], horizontalalignment='center',transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
         x.text(0.9, 1.02, f'涨跌:{pct:.2f}%',
+                 horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+
+        x.text(0.6, 0.05, f'主力:{df_plot[("boss", k)].ffill().values[-1]:.0f}亿  成交额:{df_plot[f"amtcum_{k}"].ffill().values[-1]:.0f}亿  主力占比:{df_plot[f"bosspct_{k}"].ffill().values[-1]:.1f}%',
                  horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()
@@ -1232,7 +1254,7 @@ def plot_fullday(df):
     plt.close(fig)
 
 def plotAll():
-    global dp_boss, dp_amount, dp_preclose,timetitle,seq
+    global dp_boss, dp_amount, dp_amtcum,dp_bosspct,dp_preclose,timetitle,seq
 
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
@@ -1247,6 +1269,8 @@ def plotAll():
     if True:
         # df_temp = df_all[:100+1]
         df_temp = df_all
+
+
         dp_h = max(dp_preclose, df_temp.close.max())
         dp_l = min(dp_preclose, df_temp.close.min())
         dp_hh = dp_l + (dp_h - dp_l) * 7.5 / 8
@@ -1278,12 +1302,18 @@ def plotAll():
             df_temp.loc[(df_temp[('close',k)] < k_hh) & (df_temp[('close',k)].shift(1) > k_hh), f'crossdw_{k}'] = -0.5
             df_temp.loc[(df_temp[('close',k)] > k_ll) & (df_temp[('close',k)].shift(1) < k_ll), f'crossup_{k}'] = -0.5
 
-            tmp=df_temp[[('close',k),('volume',k)]]
-            tmp['volcum'] = tmp[('volume',k)].cumsum()
-            tmp['amt'] = tmp[('close',k)]*tmp[('volume',k)]
-            tmp['amtcum'] = tmp['amt'].cumsum()
+            if ('amount',k) in df_temp.columns:
+                tmp = df_temp[[('close', k), ('volume', k),('amount',k)]]
+                tmp['amtcum'] = tmp[('amount',k)].cumsum()
+            else:
+                tmp=df_temp[[('close',k),('volume',k)]]
+                tmp['amt'] = tmp[('close',k)]*tmp[('volume',k)]
+                tmp['amtcum'] = tmp['amt'].cumsum()
+            tmp['volcum'] = tmp[('volume', k)].cumsum()
             tmp[f'avg_{k}'] = tmp['amtcum']/tmp['volcum']
             df_temp[f'avg_{k}'] = tmp[f'avg_{k}']
+            df_temp[f'amtcum_{k}'] = tmp['amtcum']
+            df_temp[f'bosspct_{k}'] = df_temp[('boss', k)]/df_temp[f'amtcum_{k}']*100000000*10
 
         seq = str(len(df_temp)).zfill(3)
         ktime = df_temp['datetime'].values[-1][2:].replace('-','').replace(' ','_')
@@ -1292,7 +1322,10 @@ def plotAll():
 
         dp_boss = df_temp['boss'].ffill().values[-1]/100000000
         dp_amount = df_temp['amttrend'].ffill().values[-1]/100000000
-
+        df_temp['dpamtcum'] = df_temp['allamt'].cumsum()
+        df_temp['dpbosspct'] = df_temp['boss']/df_temp['dpamtcum']*100
+        dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
+        dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
 
         if len(df_temp) <= 120:
             df_temp2 = pd.concat([pd.DataFrame([[]])*1,df_temp])
@@ -1536,7 +1569,8 @@ if __name__ == '__main__':
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
     dte_high = int(dict(config.items('option_screen'))['dte_high'])
-    close_Threshold = float(dict(config.items('option_screen'))['close_threshold'])
+    close_Threshold_min = float(dict(config.items('option_screen'))['close_min'])
+    close_Threshold_max = float(dict(config.items('option_screen'))['close_max'])
     etf_ccb_dict = dict(config.items('etf_ccb_dict'))
     etfbk_dict = dict(config.items('etfbk_dict'))
     etf_dict = dict(config.items('etf_dict'))
