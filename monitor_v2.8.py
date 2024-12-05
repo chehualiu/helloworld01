@@ -543,8 +543,8 @@ def getMyOptions():
         etfcode = etfcode_dict[key]
         tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high) \
                      & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max) & (data['amount']>0)]
-        tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15/2 if x<0.15 else 0.15/x*2)
-        tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['amount']
+        tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15 if x<0.15 else 0.15/x)
+        tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
         call = tmpdf[(tmpdf['direction']=='call')][:1]
         put = tmpdf[(tmpdf['direction']=='put')][:1]
@@ -1044,8 +1044,8 @@ def plot_morning(df):
         lastclose = df_plot[('preclose', k)].values[1]
         pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
         x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-        x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up',marker='o', alpha=0.8, zorder=-30)
-        x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw',marker='o', alpha=0.8, zorder=-30)
+        # x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up',marker='o', alpha=0.8, zorder=-30)
+        # x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw',marker='o', alpha=0.8, zorder=-30)
 
         x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
         # x.plot(df_plot.index, df_plot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
@@ -1074,10 +1074,10 @@ def plot_morning(df):
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
         x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.4,zorder=-20)
-        x6.set_yticks([])
+        # x6.set_yticks([])
 
-        x7 = x.twinx()
-        x7.plot(df_plot.index, df_plot[f'bosspct_{k}'], linewidth=1, color='k')
+        # x7 = x.twinx()
+        # x7.plot(df_plot.index, df_plot[f'bosspct_{k}'], linewidth=1, color='k')
 
         if int(seq) < 90:
             x.legend(loc='upper right',framealpha=0.1)
@@ -1186,10 +1186,10 @@ def plot_fullday(df):
         pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
 
         x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-        x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up', marker='o', alpha=0.8,
-                  zorder=-30)
-        x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw', marker='o', alpha=0.8,
-                  zorder=-30)
+        # x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up', marker='o', alpha=0.8,
+        #           zorder=-30)
+        # x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw', marker='o', alpha=0.8,
+        #           zorder=-30)
 
         x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
         # x.plot(df_plot.index, df_plot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
@@ -1528,7 +1528,7 @@ def main():
 
     try:
 
-        while (time.strftime("%H%M", time.localtime())>='0930' and time.strftime("%H%M", time.localtime())<='1502'):
+        while (time.strftime("%H%M", time.localtime())>='0925' and time.strftime("%H%M", time.localtime())<='1502'):
 
             if (time.strftime("%H%M", time.localtime())>'1130' and time.strftime("%H%M", time.localtime())<'1300'):
                 print(f'sleep {sleepsec*2}s')
