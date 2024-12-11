@@ -542,20 +542,20 @@ def getMyOptions():
     for key in etf_dict.keys():
         etfcode = etfcode_dict[key]
         tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high) \
-                     & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max) & (data['amount']>0)]
+                     & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max)]
         tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15 if x<0.15 else 0.15/x)
-        tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']*tmpdf['tmpfact']*tmpdf['amount']
+        tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']#*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
         call = tmpdf[(tmpdf['direction']=='call')][:1]
         put = tmpdf[(tmpdf['direction']=='put')][:1]
         if len(call) == 0:
-            tmpstr = '认购:流动性过滤为空   '
+            tmpstr = f'{key}认购:流动性过滤为空   '
         else:
             tmpstr = '认购:' + call['code'].values[0] + '_' + call['name'].values[0] + '_' + str(
                 call['close'].values[0]) + ' =itm' + str(int(call['itm'].values[0]*10000)) + '+' + str(int(call['otm'].values[0]*10000)) + \
                 ' 杠杆:'+str(int(call['实际杠杆'].values[0]))
         if len(put) == 0:
-            tmpstr += '\n认沽:流动性过滤为空'
+            tmpstr += f'\n{key}认沽:流动性过滤为空'
         else:
             tmpstr += '\n认沽:' + put['code'].values[0] + '_' + put['name'].values[0] + '_' + str(
                 put['close'].values[0]) + ' =itm' + str(int(put['itm'].values[0]*10000)) + '+' + str(int(put['otm'].values[0]*10000)) + \
@@ -1104,8 +1104,8 @@ def plot_morning(df):
         x.text(0.9, 1.02, f'涨跌:{pct:.2f}%',
                  horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
-        x.text(0.6, 0.05, f'主力:{df_plot[("boss", k)].ffill().values[-1]:.0f}亿  成交额:{df_plot[f"amtcum_{k}"].ffill().values[-1]:.0f}亿  主力占比:{df_plot[f"bosspct_{k}"].ffill().values[-1]:.1f}%',
-                 horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        # x.text(0.6, 0.05, f'主力:{df_plot[("boss", k)].ffill().values[-1]:.0f}亿  成交额:{df_plot[f"amtcum_{k}"].ffill().values[-1]:.0f}亿  主力占比:{df_plot[f"bosspct_{k}"].ffill().values[-1]:.1f}%',
+        #          horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()
     # plt.suptitle(timetitle,x=0.6, y=0.98)
