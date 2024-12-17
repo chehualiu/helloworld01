@@ -840,6 +840,12 @@ def getOptiondata():
         df_short.rename(columns={'close':'short'}, inplace=True)
         df_opt = pd.merge(df_long[['datetime','long','longm20','Long_crossdw', 'Long_crossup','Long_pivotup','Long_pivotdw']],
                           df_short[['datetime','short','shortm20','Short_crossdw', 'Short_crossup','Short_pivotup','Short_pivotdw']], on='datetime',how='inner')
+        ttt = df_full[['datetime', ('up', k), ('dw', k),('boss',k)]]
+        ttt.rename(columns={('up', k):'up',('dw', k):'dw',('boss', k):'boss'}, inplace=True)
+        df_opt = pd.merge(df_opt, ttt, on='datetime',how='left')
+        df_opt['up'] = df_opt['up'].replace(0.0, preclose_long)
+        df_opt['dw'] = df_opt['dw'].replace(0.0, preclose_long)
+
 
         df_opt['etf'] = k
         df_options = pd.concat([df_options, df_opt])
@@ -856,7 +862,7 @@ def getOptiondata():
 
     opt_Pivot = df_options.pivot_table(index='datetime',columns='etf',values=['long', 'longm20','short','shortm20',
                     'Long_crossdw', 'Long_crossup', 'Short_crossdw', 'Short_crossup',
-                    'Long_pivotup', 'Long_pivotdw', 'Short_pivotup', 'Short_pivotdw'], dropna=False)
+                    'Long_pivotup', 'Long_pivotdw', 'Short_pivotup', 'Short_pivotdw','up','dw','boss'], dropna=False)
 
     return opt_Pivot
 
@@ -881,12 +887,16 @@ def getETFdata():
             preidx = tmp.index[-1]
         preclose =   df_single.loc[preidx,'close']
         df_single['preclose'] = preclose
-        # dp_h = max(preclose, df_single[preidx+1:].high.max())
-        # dp_l = min(preclose, df_single[preidx+1:].low.min())
-        # dp_hh = dp_l + (dp_h - dp_l) * 7.5 / 8
-        # dp_ll = dp_l + (dp_h - dp_l) * 0.5 / 8
-        # df_single.loc[(df_single.close < dp_hh) & (df_single.close.shift(1) > dp_hh), 'crossdw'] = df_single.close
-        # df_single.loc[(df_single.close > dp_ll) & (df_single.close.shift(1) < dp_ll), 'crossup'] = df_single.close
+
+        k_h = max(preclose, df_single['high'].max())
+        k_l = min(preclose, df_single['low'].min())
+        k_hh = k_l + (k_h - k_l) * 7.5 / 8
+        k_ll = k_l + (k_h - k_l) * 0.5 / 8
+        df_single['crossdw'] = np.nan
+        df_single['crossup'] = np.nan
+        df_single.loc[(df_single['close'] < k_hh) & (df_single['close'].shift(1) > k_hh), 'crossdw'] = -0.5
+        df_single.loc[(df_single['close'] > k_ll) & (df_single['close'].shift(1) < k_ll), 'crossup'] = -0.5
+
 
         df_single['cp30'] = (df_single['close'] - df_single['close'].rolling(30).min()) / (
                     df_single['close'].rolling(30).max() - df_single['close'].rolling(30).min())
@@ -922,10 +932,17 @@ def getETFdata():
         df_single.loc[(df_single['bossflag']==1) & (df_single['bossflag'].shift(1)==-1), 'bosssigup'] = df_single['close']
         df_single.loc[(df_single['bossflag']==-1) & (df_single['bossflag'].shift(1)==1), 'bosssigdw'] = df_single['close']
 
+        df_single['sig'] = df_single[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
+        df_single['sig'] = df_single.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
+        df_single['sig'] = df_single['sig'].ffill()
+        df_single['up'] = df_single.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
+        df_single['dw'] = df_single.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+
+
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
     df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'close', 'high', 'low','open','preclose','volume',
-               'cm5','cm20','ccp60','pivotup','pivotdw','bosssigup','bosssigdw','boss','amount'], dropna=False)
+               'cm5','cm20','ccp60','pivotup','pivotdw','crossup','crossdw','up','dw','bosssigup','bosssigdw','boss','amount'], dropna=False)
 
     return df_pivot
 
@@ -967,6 +984,10 @@ def plot_morning(df):
     ax00d.scatter(df_plot.index, df_plot['pivotdw'], label='转折点',marker='v', s=49, c='green', alpha=0.7)
     ax00d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
     ax00d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
+    ax00d.scatter(df_plot.index, df_plot['up'], marker='.', s=25, c='red', alpha=0.7)
+    ax00d.scatter(df_plot.index, df_plot['dw'], marker='.', s=25, c='green', alpha=0.8)
+
+
     ax00d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
     ax00d.plot(df_plot.index, df_plot.dpbosspct, color='k', linewidth=1, alpha=0.7)
     ax00d.set_ylim(-10, 10)
@@ -1003,6 +1024,8 @@ def plot_morning(df):
     ax01d.scatter(df_plot.index, df_plot['pivotdw'], label='转折点',marker='v', s=49, c='green', alpha=0.7)
     ax01d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
     ax01d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
+    ax01d.scatter(df_plot.index, df_plot['up'], marker='.', s=25, c='red', alpha=0.7)
+    ax01d.scatter(df_plot.index, df_plot['dw'], marker='.', s=25, c='green', alpha=0.8)
     ax01d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
     ax01d.set_ylim(-10, 10)
     ax01d.set_yticks([])
@@ -1056,8 +1079,10 @@ def plot_morning(df):
         x3 = x.twinx()
         x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点',s=25, c='r', marker='^', alpha=0.7,zorder=-10)
         x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点',s=25, c='g', marker='v', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[f'crossup_{k}'], label='底部涨',s=16, c='r', marker='D', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[f'crossdw_{k}'], label='顶部跌',s=16, c='g', marker='D', alpha=0.7,zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossup',k)], label='底部涨',s=16, c='r', marker='D', alpha=0.7,zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossdw',k)], label='顶部跌',s=16, c='g', marker='D', alpha=0.7,zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('up',k)], marker='.', s=25, c='red', alpha=0.7)
+        x3.scatter(df_plot.index, df_plot[('dw',k)], marker='.', s=25, c='green', alpha=0.8)
         x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k',linewidth=0.5, alpha=0.6, zorder=-25)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
@@ -1155,6 +1180,9 @@ def plot_fullday(df):
     ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
     ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=25, c='red', alpha=0.7)
     ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=25, c='green', alpha=0.8)
+    ax0e.scatter(df_plot.index, df_plot['up'], marker='.', s=25, c='red', alpha=0.7)
+    ax0e.scatter(df_plot.index, df_plot['dw'], marker='.', s=25, c='green', alpha=0.8)
+
     ax0e.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
     ax0e.set_ylim(-10, 10)
     ax0e.set_yticks([])
@@ -1211,8 +1239,10 @@ def plot_fullday(df):
         x3 = x.twinx()
         x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
-        x3.scatter(df_plot.index, df_plot[f'crossup_{k}'], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
-        x3.scatter(df_plot.index, df_plot[f'crossdw_{k}'], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('up',k)], marker='.', s=25, c='red', alpha=0.7)
+        x3.scatter(df_plot.index, df_plot[('dw',k)], marker='.', s=25, c='green', alpha=0.8)
         x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6,
                   zorder=-25)
         x3.set_ylim(-10, 10)
@@ -1270,7 +1300,6 @@ def plotAll():
         # df_temp = df_all[:100+1]
         df_temp = df_all
 
-
         dp_h = max(dp_preclose, df_temp.close.max())
         dp_l = min(dp_preclose, df_temp.close.min())
         dp_hh = dp_l + (dp_h - dp_l) * 7.5 / 8
@@ -1292,15 +1321,6 @@ def plotAll():
                   (df_temp['close'] < df_temp['close'].shift(1)), 'pivotdw'] = 0.5
 
         for k, v in etf_dict2.items():
-            preclose = df_temp[('preclose',k)].values[-1]
-            k_h = max(preclose, df_temp[('high',k)].max())
-            k_l = min(preclose, df_temp[('low',k)].min())
-            k_hh = k_l + (k_h - k_l) * 7.5 / 8
-            k_ll = k_l + (k_h - k_l) * 0.5 / 8
-            df_temp[f'crossdw_{k}'] = np.nan
-            df_temp[f'crossup_{k}'] = np.nan
-            df_temp.loc[(df_temp[('close',k)] < k_hh) & (df_temp[('close',k)].shift(1) > k_hh), f'crossdw_{k}'] = -0.5
-            df_temp.loc[(df_temp[('close',k)] > k_ll) & (df_temp[('close',k)].shift(1) < k_ll), f'crossup_{k}'] = -0.5
 
             if ('amount',k) in df_temp.columns:
                 tmp = df_temp[[('close', k), ('volume', k),('amount',k)]]
@@ -1326,6 +1346,11 @@ def plotAll():
         df_temp['dpbosspct'] = df_temp['boss']/df_temp['dpamtcum']*100
         dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
         dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
+        df_temp['sig'] = df_temp[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
+        df_temp['sig'] = df_temp.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
+        df_temp['sig'] = df_temp['sig'].ffill()
+        df_temp['up'] = df_temp.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
+        df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
 
         if len(df_temp) <= 120:
             df_temp2 = pd.concat([pd.DataFrame([[]])*1,df_temp])
@@ -1342,7 +1367,7 @@ def plotAll():
 
 def plot_options():
 
-    global df_optlist, new_optlist, df_full, timetitle
+    global df_optlist, new_optlist, timetitle
 
     df_opt = getOptiondata()
     df_opt = df_opt#[:100]
@@ -1396,6 +1421,8 @@ def plot_options():
             x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('up', k)], marker='.', s=16, color='red', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('dw', k)], marker='.', s=16, color='green', alpha=0.5, zorder=-10)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
@@ -1408,7 +1435,8 @@ def plot_options():
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
             x2= x.twinx()
-            x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            # x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
             x2.set_yticks([])
 
             if k in png_dict.keys():
@@ -1467,6 +1495,8 @@ def plot_options():
             x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.7, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('up', k)], marker='.', s=16, color='red', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('dw', k)], marker='.', s=16, color='green', alpha=0.5, zorder=-10)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
@@ -1478,7 +1508,7 @@ def plot_options():
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
             x2= x.twinx()
-            x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
             x2.set_yticks([])
 
             if k in png_dict.keys():
@@ -1528,9 +1558,12 @@ def main():
 
     try:
 
-        while (time.strftime("%H%M", time.localtime())>='0925' and time.strftime("%H%M", time.localtime())<='1502'):
+        while (time.strftime("%H%M", time.localtime())>='0920' and time.strftime("%H%M", time.localtime())<='1502'):
 
-            if (time.strftime("%H%M", time.localtime())>'1130' and time.strftime("%H%M", time.localtime())<'1300'):
+            if (time.strftime("%H%M", time.localtime())>'1131' and time.strftime("%H%M", time.localtime())<'1300'):
+                print(f'sleep {sleepsec*2}s')
+                time.sleep(sleepsec*2)
+            elif (time.strftime("%H%M", time.localtime())<'0930'):
                 print(f'sleep {sleepsec*2}s')
                 time.sleep(sleepsec*2)
             else:
