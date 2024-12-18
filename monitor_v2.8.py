@@ -888,14 +888,14 @@ def getETFdata():
         preclose =   df_single.loc[preidx,'close']
         df_single['preclose'] = preclose
 
-        k_h = max(preclose, df_single['high'].max())
-        k_l = min(preclose, df_single['low'].min())
+        k_h = max(preclose, df_single['high'][preidx+1:].max())
+        k_l = min(preclose, df_single['low'][preidx+1:].min())
         k_hh = k_l + (k_h - k_l) * 7.5 / 8
         k_ll = k_l + (k_h - k_l) * 0.5 / 8
         df_single['crossdw'] = np.nan
         df_single['crossup'] = np.nan
-        df_single.loc[(df_single['close'] < k_hh) & (df_single['close'].shift(1) > k_hh), 'crossdw'] = -0.5
-        df_single.loc[(df_single['close'] > k_ll) & (df_single['close'].shift(1) < k_ll), 'crossup'] = -0.5
+        df_single.loc[(df_single['close'] < k_hh) & (df_single['close'].shift(1) >= k_hh), 'crossdw'] = -0.5
+        df_single.loc[(df_single['close'] > k_ll) & (df_single['close'].shift(1) <= k_ll), 'crossup'] = -0.5
 
 
         df_single['cp30'] = (df_single['close'] - df_single['close'].rolling(30).min()) / (
