@@ -450,18 +450,37 @@ def getAllOptionsV3():
                   'f250':'溢价率','f161':'行权价'}#,'f47':'vol','f48':'amount','f133':'allvol'}
 
     url1 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112307429657982724098_1687701611430&fid=f250'+ \
-           '&po=1&pz=1000&pn=1&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5'+ \
+           '&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5'+ \
            '&fields=f1,f2,f3,f12,f13,f14,f161,f250,f330,f331,f332,f333,f334,f335,f337,f301,f152&fs=m:10'
     res = requests.get(url1, headers=header)
     tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"','"0"')
     data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
     data1.rename(columns = field_map0,inplace=True)
 
+    for i in range(2,5,1):
+        url1i = url1.replace('&pn=1&',f'&pn={i}&')
+        resi = requests.get(url1i, headers=header)
+        tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+        data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+        data1i.rename(columns=field_map0, inplace=True)
+        if len(data1i)>0:
+            data1 = pd.concat([data1, data1i])
+
+
     url2 = url1[:-1] + '2'
     res = requests.get(url2,headers=header)
     tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"','"0"')
     data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
     data2.rename(columns = field_map0,inplace=True)
+
+    for i in range(2,5,1):
+        url1i = url2.replace('&pn=1&',f'&pn={i}&')
+        resi = requests.get(url1i, headers=header)
+        tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+        data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+        data2i.rename(columns=field_map0, inplace=True)
+        if len(data2i)>0:
+            data2 = pd.concat([data2, data2i])
 
     data = pd.concat([data1, data2])
     data = data[list(field_map0.values())]
@@ -1550,7 +1569,7 @@ def plot_options():
 
 def main():
 
-    global factor, dayr1,png_dict, tdxdata, df_optlist,df_full
+    global factor, dayr1,png_dict, tdxdata, df_optlist,df_full,opt_fine
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
         print(f'waiting market, sleep {sleepsec*2}s')
@@ -1568,16 +1587,23 @@ def main():
                 time.sleep(sleepsec*2)
             else:
                 try:
-                    png_dict,df_optlist = getMyOptions()
+                    png_dict, df_optlist = getMyOptions()
                 except:
-                    png_dict = {}
+                    png_dict = {'k': '流动性'}
+                opt_fine = True
+                for k, v in png_dict.items():
+                    if '流动性' in v:
+                        opt_fine = False
+                        print(f'请检查{k}的期权清单是否完整')
+                        break
+
                 df_full =plotAll()
-                if plotopt == 'Y':
+                if plotopt == 'Y' and opt_fine==True:
                     plot_options()
                 time.sleep(sleepsec)
 
         df_full =plotAll()
-        if plotopt == 'Y':
+        if plotopt == 'Y' and opt_fine==True:
             plot_options()
 
         return
@@ -1631,13 +1657,19 @@ if __name__ == '__main__':
     try:
         png_dict,df_optlist = getMyOptions()
     except:
-        png_dict = {}
+        png_dict = {'k':'流动性'}
+    opt_fine = True
+    for k,v in png_dict.items():
+        if '流动性' in v:
+            opt_fine = False
+            print(f'请检查{k}的期权清单是否完整')
+            break
 
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
     # df_full = plotAll()
-    # if plotopt == 'Y':
+    # if plotopt == 'Y' and opt_fine==True:
     #     plot_options()
 
     main()
