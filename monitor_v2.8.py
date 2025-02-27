@@ -460,11 +460,12 @@ def getAllOptionsV3():
     for i in range(2,5,1):
         url1i = url1.replace('&pn=1&',f'&pn={i}&')
         resi = requests.get(url1i, headers=header)
-        tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
-        data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
-        data1i.rename(columns=field_map0, inplace=True)
-        if len(data1i)>0:
-            data1 = pd.concat([data1, data1i])
+        if len(resi.text) > 500:
+            tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+            data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+            data1i.rename(columns=field_map0, inplace=True)
+            if len(data1i)>0:
+                data1 = pd.concat([data1, data1i])
 
 
     url2 = url1[:-1] + '2'
@@ -476,11 +477,12 @@ def getAllOptionsV3():
     for i in range(2,5,1):
         url1i = url2.replace('&pn=1&',f'&pn={i}&')
         resi = requests.get(url1i, headers=header)
-        tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
-        data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
-        data2i.rename(columns=field_map0, inplace=True)
-        if len(data2i)>0:
-            data2 = pd.concat([data2, data2i])
+        if len(resi.text)>500:
+            tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+            data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+            data2i.rename(columns=field_map0, inplace=True)
+            if len(data2i)>0:
+                data2 = pd.concat([data2, data2i])
 
     data = pd.concat([data1, data2])
     data = data[list(field_map0.values())]
