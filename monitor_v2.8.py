@@ -562,8 +562,8 @@ def getMyOptions():
     png_dict = {}
     for key in etf_dict.keys():
         etfcode = etfcode_dict[key]
-        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high) \
-                     & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max)]
+        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high)]# \
+                     # & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max)]
         tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15 if x<0.15 else 0.15/x)
         tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']#*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
