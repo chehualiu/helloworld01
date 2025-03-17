@@ -517,7 +517,7 @@ def getAllOptionsV3():
     return data
 
 def getMyOptions():
-    global dte_high, dte_low,close_Threshold_min, close_Threshold_mean,close_Threshold_max,opt_fn, tdxdata
+    global dte_high, dte_low, close_Threshold_mean,opt_fn, tdxdata
 
     # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
     now = tdxdata.get_kline_data('999999',0,20,8)
@@ -562,8 +562,7 @@ def getMyOptions():
     png_dict = {}
     for key in etf_dict.keys():
         etfcode = etfcode_dict[key]
-        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high)]# \
-                     # & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max)]
+        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high)]
         tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/close_Threshold_mean if x<=close_Threshold_mean else close_Threshold_mean/x)
         tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']#*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
@@ -876,8 +875,8 @@ def getOptiondata():
         short_itm = max(0, shortrow['行权价'].values[0]-ETFprice)
         short_otm = df_opt['short'].values[-1] - short_itm
 
-        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm:.4f}+otm{long_otm:.4f}_金额:{(df_long['long']*df_long['trade']).sum():.0f}万'''
-        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm:.4f}+otm{short_otm:.4f}_金额:{(df_short['short']*df_short['trade']).sum():.0f}万'''
+        longtext = f'''认购:{optLongCode}_{longrow['name'].values[0]}_{df_opt['long'].values[-1]:.4f}=itm{long_itm*10000:.0f}+{long_otm*10000:.0f}_金额:{(df_long['long']*df_long['trade']).sum():.0f}万'''
+        shorttext = f'''认沽:{optShortCode}_{shortrow['name'].values[0]}_{df_opt['short'].values[-1]:.4f}=itm{short_itm*10000:.0f}+{short_otm*10000:.0f}_金额:{(df_short['short']*df_short['trade']).sum():.0f}万'''
         new_optlist[k] = f'''{longtext}\n{shorttext}'''
 
 
@@ -1630,9 +1629,7 @@ if __name__ == '__main__':
     config.read(cfg_fn, encoding='utf-8')
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
     dte_high = int(dict(config.items('option_screen'))['dte_high'])
-    close_Threshold_min = float(dict(config.items('option_screen'))['close_min'])
     close_Threshold_mean = float(dict(config.items('option_screen'))['close_mean'])
-    close_Threshold_max = float(dict(config.items('option_screen'))['close_max'])
     etf_ccb_dict = dict(config.items('etf_ccb_dict'))
     etfbk_dict = dict(config.items('etfbk_dict'))
     etf_dict = dict(config.items('etf_dict'))
