@@ -457,7 +457,7 @@ def getAllOptionsV3():
     data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
     data1.rename(columns = field_map0,inplace=True)
 
-    for i in range(2,5,1):
+    for i in range(2,6,1):
         url1i = url1.replace('&pn=1&',f'&pn={i}&')
         resi = requests.get(url1i, headers=header)
         if len(resi.text) > 500:
@@ -474,7 +474,7 @@ def getAllOptionsV3():
     data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
     data2.rename(columns = field_map0,inplace=True)
 
-    for i in range(2,5,1):
+    for i in range(2,6,1):
         url1i = url2.replace('&pn=1&',f'&pn={i}&')
         resi = requests.get(url1i, headers=header)
         if len(resi.text)>500:
@@ -517,7 +517,7 @@ def getAllOptionsV3():
     return data
 
 def getMyOptions():
-    global dte_high, dte_low,close_Threshold_min, close_Threshold_max,opt_fn, tdxdata
+    global dte_high, dte_low,close_Threshold_min, close_Threshold_mean,close_Threshold_max,opt_fn, tdxdata
 
     # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
     now = tdxdata.get_kline_data('999999',0,20,8)
@@ -564,7 +564,7 @@ def getMyOptions():
         etfcode = etfcode_dict[key]
         tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high)]# \
                      # & (data['close']>close_Threshold_min)  & (data['close']<close_Threshold_max)]
-        tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/0.15 if x<0.15 else 0.15/x)
+        tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/close_Threshold_mean if x<=close_Threshold_mean else close_Threshold_mean/x)
         tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']#*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
         call = tmpdf[(tmpdf['direction']=='call')][:1]
@@ -1631,6 +1631,7 @@ if __name__ == '__main__':
     dte_low = int(dict(config.items('option_screen'))['dte_low'])
     dte_high = int(dict(config.items('option_screen'))['dte_high'])
     close_Threshold_min = float(dict(config.items('option_screen'))['close_min'])
+    close_Threshold_mean = float(dict(config.items('option_screen'))['close_mean'])
     close_Threshold_max = float(dict(config.items('option_screen'))['close_max'])
     etf_ccb_dict = dict(config.items('etf_ccb_dict'))
     etfbk_dict = dict(config.items('etfbk_dict'))
