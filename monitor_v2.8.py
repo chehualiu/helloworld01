@@ -997,7 +997,7 @@ def plot_morning(df):
     ax00b.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax00b.set_yticks([])
     ax00c = axes[0][0].twinx()
-    ax00c.plot(df_plot.index, df_plot.boss, color='blue', linewidth=1, alpha=0.7)
+    ax00c.plot(df_plot.index, df_plot.boss, color='blue', linewidth=1, alpha=1)
 
     ax00d = axes[0][0].twinx()
     ax00d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
@@ -1036,8 +1036,8 @@ def plot_morning(df):
     ax01c = axes[0][1].twinx()
     ax01d = axes[0][1].twinx()
     ax01b.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
-    ax01c.plot(df_plot.index, df_plot.boss, label='主力', color='blue', linewidth=1, alpha=0.7)
-    ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.4,zorder=-20)
+    ax01c.plot(df_plot.index, df_plot.boss, label='主力', color='blue', linewidth=1, alpha=1)
+    ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.7,zorder=-20)
     ax01c.set_yticks([])
 
     ax01d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
@@ -1118,7 +1118,7 @@ def plot_morning(df):
 
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.4,zorder=-20)
+        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.7,zorder=-20)
         # x6.set_yticks([])
 
         # x7 = x.twinx()
@@ -1190,7 +1190,7 @@ def plot_fullday(df):
     ax0d = axes[0].twinx()
     ax0e = axes[0].twinx()
 
-    ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=0.7)
+    ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
     ax0b.set_yticks([])
     ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax0c.set_yticks([])
@@ -1278,8 +1278,8 @@ def plot_fullday(df):
         x5.set_yticks([])
 
         x6 = x.twinx()
-        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.4,zorder=-20)
+        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.7, linestyle='-', color='blue')
+        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.7,zorder=-20)
         # x6.set_yticks([])
 
         # if int(seq)>210:
@@ -1456,7 +1456,7 @@ def plot_options():
 
             x2= x.twinx()
             # x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
@@ -1528,7 +1528,7 @@ def plot_options():
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
             x2= x.twinx()
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
