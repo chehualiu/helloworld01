@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
-from utils.mplfinance import *
+# from utils.mplfinance import *
 import configparser
 
 from pytdx.hq import TdxHq_API
