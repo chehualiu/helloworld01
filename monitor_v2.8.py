@@ -1037,7 +1037,7 @@ def plot_morning(df):
     ax01d = axes[0][1].twinx()
     ax01b.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
     ax01c.plot(df_plot.index, df_plot.boss, label='主力', color='blue', linewidth=1, alpha=1)
-    ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.7,zorder=-20)
+    ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
     ax01c.set_yticks([])
 
     ax01d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
@@ -1117,8 +1117,8 @@ def plot_morning(df):
         x5.set_yticks([])
 
         x6 = x.twinx()
-        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.6, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.7,zorder=-20)
+        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.9, linestyle='-', color='blue')
+        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
         # x6.set_yticks([])
 
         # x7 = x.twinx()
@@ -1159,7 +1159,6 @@ def plot_morning(df):
 
     fig.clf()
     plt.close(fig)
-
 
 def plot_fullday(df):
     global dp_boss, dp_amount, dp_preclose, timetitle,seq
@@ -1279,7 +1278,7 @@ def plot_fullday(df):
 
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.7, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.7,zorder=-20)
+        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.5,zorder=-20)
         # x6.set_yticks([])
 
         # if int(seq)>210:
@@ -1387,10 +1386,10 @@ def plotAll():
 
 def plot_options():
 
-    global df_optlist, new_optlist, timetitle
+    global df_optlist, new_optlist, timetitle,seq
 
     df_opt = getOptiondata()
-    df_opt = df_opt#[:100]
+    # df_opt = df_opt#[:100]
     df_opt.reset_index(drop=False, inplace=True)
     if 'index' in df_opt.columns:
         del df_opt['index']
@@ -1398,21 +1397,25 @@ def plot_options():
     df_opt.reset_index(drop=False, inplace=True)
 
     keylist =  list(etf_dict.keys())
-    funcx00 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[0])].values[0] - 1) * 100)
-    funcx01 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[0])].values[0] - 1) * 100)
-    funcx10 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[1])].values[0] - 1) * 100)
-    funcx11 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[1])].values[0] - 1) * 100)
-    funcx20 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[2])].values[0] - 1) * 100)
-    funcx21 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[2])].values[0] - 1) * 100)
-    funcx30 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[3])].values[0] - 1) * 100)
-    funcx31 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[3])].values[0] - 1) * 100)
+    funcx00 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[0])].dropna().iloc[0] - 1) * 100)
+    funcx01 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[0])].dropna().iloc[0] - 1) * 100)
+    funcx10 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[1])].dropna().iloc[0] - 1) * 100)
+    funcx11 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[1])].dropna().iloc[0] - 1) * 100)
+    funcx20 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[2])].dropna().iloc[0] - 1) * 100)
+    funcx21 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[2])].dropna().iloc[0] - 1) * 100)
+    funcx30 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('long', keylist[3])].dropna().iloc[0] - 1) * 100)
+    funcx31 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x*10000, (x / df_opt[('short', keylist[3])].dropna().iloc[0] - 1) * 100)
 
     timestamp = df_opt['datetime'].values[-1].replace('-','')
 
-
     if len(df_opt)<=120:
 
-        maxx = 60 if len(df_opt)<45 else 120
+        if int(seq) < 30:
+            maxx = 60
+        elif int(seq) < 60:
+            maxx = 90
+        else:
+            maxx = 120
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
         for ax in axes[:, :1]:
             ax[0].set_xticks(np.arange(0, 121, 30))
@@ -1433,21 +1436,24 @@ def plot_options():
 
             longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
             shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
+            ylim_min = df_opt[('long', k)].dropna().min() * 0.95
+            ylim_max = df_opt[('long', k)].dropna().max() * 1.05
 
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+            x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
             x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
             x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
+            x.set_ylim(ylim_min, ylim_max)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
             x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
             x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
 
@@ -1456,7 +1462,7 @@ def plot_options():
 
             x2= x.twinx()
             # x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=1)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
@@ -1495,7 +1501,12 @@ def plot_options():
 
     else:
 
-        maxx = 180 if len(df_opt) < 180 else 240
+        if int(seq) < 150:
+            maxx = 150
+        elif int(seq) < 180:
+            maxx = 180
+        else:
+            maxx = 240
         fig, axes = plt.subplots(4, 1, figsize=(14, 10))
         for ax in axes:
             ax.set_xticks(np.arange(0, 241, 30))
@@ -1504,12 +1515,14 @@ def plot_options():
         for i, k in enumerate(etf_dict.keys()):
             x = axes[i]
 
-            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
-            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
+            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].dropna().iloc[0]*100 - 100
+            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].dropna().iloc[0]*100 - 100
+            ylim_min = df_opt[('long', k)].dropna().min() * 0.95
+            ylim_max = df_opt[('long', k)].dropna().max() * 1.05
 
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+            x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
 
             x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
@@ -1517,18 +1530,19 @@ def plot_options():
             x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
             x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
             x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
+            x.set_ylim(ylim_min, ylim_max)
 
             x1 = x.twinx()
             x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
             x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].values[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+            x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
             x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.75, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
 
             x2= x.twinx()
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=1)
+            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
