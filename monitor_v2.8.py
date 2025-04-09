@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
+
 # from utils.mplfinance import *
 import configparser
 
@@ -860,8 +861,8 @@ def getOptiondata():
         df_short.rename(columns={'close':'short'}, inplace=True)
         df_opt = pd.merge(df_long[['datetime','long','longm20','Long_crossdw', 'Long_crossup','Long_pivotup','Long_pivotdw']],
                           df_short[['datetime','short','shortm20','Short_crossdw', 'Short_crossup','Short_pivotup','Short_pivotdw']], on='datetime',how='inner')
-        ttt = df_full[['datetime', ('up', k), ('dw', k),('boss',k)]]
-        ttt.rename(columns={('up', k):'up',('dw', k):'dw',('boss', k):'boss'}, inplace=True)
+        ttt = df_full[['datetime', ('up', k), ('dw', k),('boss',k),('bossm10',k)]]
+        ttt.rename(columns={('up', k):'up',('dw', k):'dw',('boss', k):'boss',('bossm10', k):'bossm10'}, inplace=True)
         df_opt = pd.merge(df_opt, ttt, on='datetime',how='left')
         df_opt['up'] = df_opt['up'].replace(0.0, preclose_long)
         df_opt['dw'] = df_opt['dw'].replace(0.0, preclose_long)
@@ -882,7 +883,7 @@ def getOptiondata():
 
     opt_Pivot = df_options.pivot_table(index='datetime',columns='etf',values=['long', 'longm20','short','shortm20',
                     'Long_crossdw', 'Long_crossup', 'Short_crossdw', 'Short_crossup',
-                    'Long_pivotup', 'Long_pivotdw', 'Short_pivotup', 'Short_pivotdw','up','dw','boss'], dropna=False)
+                    'Long_pivotup', 'Long_pivotdw', 'Short_pivotup', 'Short_pivotdw','up','dw','boss','bossm10'], dropna=False)
 
     return opt_Pivot
 
@@ -1118,11 +1119,9 @@ def plot_morning(df):
 
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.9, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
+        x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+        # x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
         # x6.set_yticks([])
-
-        # x7 = x.twinx()
-        # x7.plot(df_plot.index, df_plot[f'bosspct_{k}'], linewidth=1, color='k')
 
         if int(seq) < 90:
             x.legend(loc='upper right',framealpha=0.1)
@@ -1277,8 +1276,9 @@ def plot_fullday(df):
         x5.set_yticks([])
 
         x6 = x.twinx()
-        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.7, linestyle='-', color='blue')
-        x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.5,zorder=-20)
+        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
+        x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+        # x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.5,zorder=-20)
         # x6.set_yticks([])
 
         # if int(seq)>210:
@@ -1353,6 +1353,7 @@ def plotAll():
             df_temp[f'avg_{k}'] = tmp[f'avg_{k}']
             df_temp[f'amtcum_{k}'] = tmp['amtcum']
             df_temp[f'bosspct_{k}'] = df_temp[('boss', k)]/df_temp[f'amtcum_{k}']*100000000*10
+            df_temp[('bossm10',k)] = df_temp[('boss', k)].rolling(10).mean()
 
         seq = str(len(df_temp)).zfill(3)
         ktime = df_temp['datetime'].values[-1][2:].replace('-','').replace(' ','_')
@@ -1390,6 +1391,7 @@ def plot_options():
 
     df_opt = getOptiondata()
     # df_opt = df_opt#[:100]
+
     df_opt.reset_index(drop=False, inplace=True)
     if 'index' in df_opt.columns:
         del df_opt['index']
@@ -1438,6 +1440,7 @@ def plot_options():
             shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
             ylim_min = df_opt[('long', k)].dropna().min() * 0.95
             ylim_max = df_opt[('long', k)].dropna().max() * 1.05
+            # df_opt[('bossm10', k)] = df_opt[('boss', k)].rolling(10).mean()
 
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
@@ -1461,8 +1464,8 @@ def plot_options():
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
             x2= x.twinx()
-            # x2.plot(df_full.index, df_full[('boss', k)], label='主力资金', color='blue', linewidth=1, alpha=0.7)
             x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
+            x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
@@ -1519,6 +1522,7 @@ def plot_options():
             shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].dropna().iloc[0]*100 - 100
             ylim_min = df_opt[('long', k)].dropna().min() * 0.95
             ylim_max = df_opt[('long', k)].dropna().max() * 1.05
+            # df_opt[('bossm10', k)] = df_opt[('boss', k)].rolling(10).mean()
 
             x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
@@ -1543,6 +1547,7 @@ def plot_options():
 
             x2= x.twinx()
             x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
+            x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
             x2.set_yticks([])
 
             if k in png_dict.keys():
