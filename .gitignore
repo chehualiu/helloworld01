@@ -1,7 +1,7 @@
 /output
 /logs
 /history
-/utils
+
 
 *.cfg
 *.log
@@ -33,3 +33,4 @@ teesst*
 *bak.py
 *bak.cfg
 .idea
+*.mp3
