@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 import time, requests
 import pandas as pd
-
+from playsound import playsound
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
@@ -999,6 +999,7 @@ def plot_morning(df):
     ax00b.set_yticks([])
     ax00c = axes[0][0].twinx()
     ax00c.plot(df_plot.index, df_plot.boss, color='blue', linewidth=1, alpha=1)
+    ax00c.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
     ax00d = axes[0][0].twinx()
     ax00d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
@@ -1038,7 +1039,8 @@ def plot_morning(df):
     ax01d = axes[0][1].twinx()
     ax01b.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
     ax01c.plot(df_plot.index, df_plot.boss, label='主力', color='blue', linewidth=1, alpha=1)
-    ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
+    ax01c.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    # ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
     ax01c.set_yticks([])
 
     ax01d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
@@ -1371,6 +1373,25 @@ def plotAll():
         df_temp['sig'] = df_temp['sig'].ffill()
         df_temp['up'] = df_temp.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
         df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+        df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
+
+        boss = df_temp['boss'].values[-1]
+        bossr1 = df_temp['boss'].values[-2]
+        bossm10 = df_temp['bossm10'].values[-1]
+        bossm10r1 = df_temp['bossm10'].values[-2]
+
+        if boss>bossm10 and bossr1<bossm10r1:
+            playsound('utils\\morning.mp3')
+            print('主力资金上穿均线')
+            msgURL = pushurl + '主力资金上穿均线'
+            requests.get(msgURL)
+        elif boss<bossm10 and bossr1>bossm10r1:
+            playsound('utils\\swoosh.mp3')
+            print('主力资金下穿均线')
+            msgURL = pushurl + '主力资金下穿均线'
+            requests.get(msgURL)
+        else:
+            pass
 
         if len(df_temp) <= 120:
             df_temp2 = pd.concat([pd.DataFrame([[]])*1,df_temp])
