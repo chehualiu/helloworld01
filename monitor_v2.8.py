@@ -3,7 +3,6 @@ import numpy as np
 import warnings
 import time, requests
 import pandas as pd
-from playsound import playsound
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
@@ -15,6 +14,7 @@ from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
 from utils.tdx_hosts import hq_hosts, Exhq_hosts
 from utils.tdx_indicator import *
+from utils.playsound import playsound
 
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
