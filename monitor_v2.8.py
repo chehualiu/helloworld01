@@ -1191,6 +1191,7 @@ def plot_fullday(df):
     ax0e = axes[0].twinx()
 
     ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
+    ax0b.plot(df_plot.index, df_plot.bossm10, color='blue',  linestyle='--', linewidth=0.5,  alpha=1)
     ax0b.set_yticks([])
     ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax0c.set_yticks([])
