@@ -1147,9 +1147,6 @@ def processAll():
     xa.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     xa.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    # if k in png_dict.keys():
-    # xa.text(0.25, 0.9, png_dict[k], horizontalalignment='center', transform=xa.transAxes, fontsize=12,
-    #            fontweight='bold', color='black')
     xa.text(0.7, 1.02, f'{k} 涨跌:{pct:.2f}%',
              horizontalalignment='center', transform=xa.transAxes, fontsize=12, fontweight='bold', color='black')
 
@@ -1184,8 +1181,8 @@ def processAll():
     xb1.scatter(df_plot.index, df_plot['Short_pivotdw'], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
     xb2 = xb.twinx()
-    xb2.plot(df_plot.index, df_plot['boss'], label='主力资金', color='blue', linewidth=0.7, alpha=1)
-    xb2.plot(df_plot.index, df_plot['bossm10'], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    xb2.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
+    xb2.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
     xb2.set_yticks([])
 
     xb.text(0.25, 0.95, new_optlist, horizontalalignment='center', transform=xb.transAxes, fontsize=12,
@@ -1233,11 +1230,6 @@ def main():
                 except:
                     png_dict = {'k': '流动性'}
                 opt_fine = True
-                for k, v in png_dict.items():
-                    if '流动性' in v:
-                        opt_fine = False
-                        print(f'请检查{k}的期权清单是否完整')
-                        break
 
                 processAll()
                 time.sleep(sleepsec)
