@@ -1019,10 +1019,13 @@ def processAll():
     df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
     df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
 
-    boss = df_temp['boss'].values[-1]
-    bossr1 = df_temp['boss'].values[-2]
-    bossm10 = df_temp['bossm10'].values[-1]
-    bossm10r1 = df_temp['bossm10'].values[-2]
+    df_opt,longtext,shorttext,new_optlist = getOptiondata()
+    df_plot = pd.merge(df_opt, df_temp, on='datetime', how='left')
+
+    boss = df_plot[('boss', k)].values[-1]
+    bossr1 = df_plot[('boss', k)].values[-2]
+    bossm10 = df_plot[('bossm10', k)].values[-1]
+    bossm10r1 = df_plot[('bossm10', k)].values[-2]
 
     if boss>bossm10 and bossr1<bossm10r1:
         playsound('utils\\morning.mp3')
@@ -1037,8 +1040,6 @@ def processAll():
     else:
         pass
 
-    df_opt,longtext,shorttext,new_optlist = getOptiondata()
-    df_plot = pd.merge(df_opt, df_temp, on='datetime', how='left')
 
     if 'index' in df_plot.columns:
         del df_plot['index']
