@@ -1384,13 +1384,15 @@ def plotAll():
         if boss>bossm10 and bossr1<bossm10r1:
             playsound('utils\\morning.mp3')
             print('主力资金上穿均线')
-            msgURL = pushurl + '主力资金上穿均线'
-            requests.get(msgURL)
+            if len(pushurl)>10:
+                msgURL = pushurl + '主力资金上穿均线'
+                requests.get(msgURL)
         elif boss<bossm10 and bossr1>bossm10r1:
             playsound('utils\\swoosh.mp3')
             print('主力资金下穿均线')
-            msgURL = pushurl + '主力资金下穿均线'
-            requests.get(msgURL)
+            if len(pushurl) > 10:
+                msgURL = pushurl + '主力资金下穿均线'
+                requests.get(msgURL)
         else:
             pass
 

@@ -1030,13 +1030,21 @@ def processAll():
     if boss>bossm10 and bossr1<bossm10r1:
         playsound('utils\\morning.mp3')
         print('主力资金上穿均线')
-        msgURL = pushurl + '主力资金上穿均线'
-        requests.get(msgURL)
+        if pushflag=='Y':
+            try:
+                msgURL = pushurl + '主力资金上穿均线'
+                requests.get(msgURL,timeout=1)
+            except:
+                pass
     elif boss<bossm10 and bossr1>bossm10r1:
         playsound('utils\\swoosh.mp3')
         print('主力资金下穿均线')
-        msgURL = pushurl + '主力资金下穿均线'
-        requests.get(msgURL)
+        if pushflag=='Y':
+            try:
+                msgURL = pushurl + '主力资金下穿均线'
+                requests.get(msgURL,timeout=1)
+            except:
+                pass
     else:
         pass
 
@@ -1272,6 +1280,7 @@ if __name__ == '__main__':
     png_dict = dict(config.items('png_dict'))
     opt_path = dict(config.items('path'))['opt_path']
     pushurl = dict(config.items('pushmessage'))['url']
+    pushflag = dict(config.items('pushmessage'))['enable']
     plotopt = dict(config.items('plotimgs'))['option']
 
 
