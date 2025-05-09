@@ -2,45 +2,43 @@ from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
 import pandas as pd
 import requests, re,json
-from .tdx_hosts import hq_hosts, Exhq_hosts
 
 class mytdxData(object):
 
-    def __init__(self):
+    def __init__(self,hq_hosts,Exhq_hosts):
 
         api = TdxHq_API(heartbeat=True)
-        apilist=pd.DataFrame(hq_hosts)
-        apilist.columns=['name','ip','port']
-        if self.TestConnection(api, 'HQ', apilist['ip'].values[0], apilist['port'].values[0]) == False:  # or \
-            if self.TestConnection(api, 'HQ', apilist['ip'].values[1], apilist['port'].values[1]) == False:  # or \
-                if self.TestConnection(api, 'HQ', apilist['ip'].values[2], apilist['port'].values[2]) == False:  # or \
-                    if self.TestConnection(api, 'HQ', apilist['ip'].values[3], apilist['port'].values[3]) == False:  # or \
-                        print('All HQ server Failed!!!')
-                    else:
-                        print(f'connection to HQ server[3]!{apilist["name"].values[3]}')
-                else:
-                    print(f'connection to HQ server[2]!{apilist["name"].values[2]}')
-            else:
-                print(f'connection to HQ server[1]!{apilist["name"].values[1]}')
-        else:
-            print(f'connection to HQ server[0]!{apilist["name"].values[0]}')
-
         Exapi = TdxExHq_API(heartbeat=True)
-        exapilist=pd.DataFrame(Exhq_hosts)
-        exapilist.columns=['name','ip','port']
-        if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[0], exapilist['port'].values[0]) == False:  # or \
-            if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[1], exapilist['port'].values[1]) == False:  # or \
-                if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[2], exapilist['port'].values[2]) == False:  # or \
-                    if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[3], exapilist['port'].values[3]) == False:  # or \
-                        print('All ExHQ server Failed!!!')
-                    else:
-                        print(f'connection to ExHQ server[3]!{exapilist["name"].values[3]}')
-                else:
-                    print(f'connection to ExHQ server[2]!{exapilist["name"].values[2]}')
+        api_connected = False
+        Exapi_connected = False
+
+        for i in range(len(hq_hosts)):
+            name = hq_hosts[i][0]
+            ip = hq_hosts[i][1]
+            port = hq_hosts[i][2]
+            if self.TestConnection(api, 'HQ', ip, port) == False:  # or \
+                continue
             else:
-                print(f'connection to ExHQ server[1]!{exapilist["name"].values[1]}')
-        else:
-            print(f'connection to ExHQ server[0]!{exapilist["name"].values[0]}')
+                api_connected = True
+                print(f'connection to HQ server[{i}]!{name}{ip}')
+                break
+        if api_connected == False:
+            print('All HQ server Failed!!!')
+            exit(0)
+
+        for i in range(len(Exhq_hosts)):
+            name = Exhq_hosts[i][0]
+            ip = Exhq_hosts[i][1]
+            port = Exhq_hosts[i][2]
+            if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:  # or \
+                continue
+            else:
+                Exapi_connected = True
+                print(f'connection to ExHQ server[{i}]!{name}{ip}')
+                break
+        if Exapi_connected == False:
+            print('All ExHQ server Failed!!!')
+            exit(0)
 
         self.api = api
         self.Exapi = Exapi
