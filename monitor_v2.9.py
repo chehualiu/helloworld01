@@ -619,6 +619,7 @@ def processAll():
     df_day_ccb['m20'] = df_day_ccb['close'].rolling(20).mean()
     df_day_ccb = df_day_ccb[20:]
     df_day_ccb.reset_index(drop=True, inplace=True)
+    pre_ccb = df_day_ccb.close.iloc[-2]
 
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
@@ -782,6 +783,7 @@ def processAll():
     xa = axes[1][1]
     lastclose = df_plot[('preclose', k)].values[1]
     pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
+    ccb_pct = df_plot[('ccb', k)].dropna().values[-1] / pre_ccb*100 - 100
 
     xa.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
 
@@ -803,6 +805,8 @@ def processAll():
 
     xa4 = xa.twinx()
     xa4.plot(df_plot.index, df_plot[('ccb', k)], label='ccb',linewidth=0.9, linestyle='-', color='green')
+    xa4.hlines(pre_ccb, xmin=df_plot.index.min(), xmax=maxx, color='green', linewidth=0.5, alpha=0.6,
+              linestyle='--',zorder=-25)
     xa4.set_yticks([])
 
     xa5 = xa.twinx()
@@ -819,7 +823,7 @@ def processAll():
     xa.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     xa.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    xa.text(0.7, 1.02, f'{k} 涨跌:{pct:.2f}%',
+    xa.text(0.7, 1.02, f'{k}涨跌:{pct:.2f}%, ccb涨跌:{ccb_pct:.2f}%',
              horizontalalignment='center', transform=xa.transAxes, fontsize=12, fontweight='bold', color='black')
 
     xb = axes[2][1]

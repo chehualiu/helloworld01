@@ -24,7 +24,7 @@ class mytdxData(object):
                 break
         if api_connected == False:
             print('All HQ server Failed!!!')
-            exit(0)
+            # exit(0)
 
         for i in range(len(Exhq_hosts)):
             name = Exhq_hosts[i][0]
@@ -38,7 +38,7 @@ class mytdxData(object):
                 break
         if Exapi_connected == False:
             print('All ExHQ server Failed!!!')
-            exit(0)
+            # exit(0)
 
         self.api = api
         self.Exapi = Exapi
