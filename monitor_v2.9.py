@@ -206,7 +206,7 @@ def getMyOptions():
     png_dict = {}
     for key in etf_dict.keys():
         etfcode = etfcode_dict[key]
-        tmpdf = data[(data['ETFcode']==etfcode) & (data['dte']>dte_low) & (data['dte']<dte_high)]
+        tmpdf = data[(data['ETFcode']==etfcode) & (~data['name'].str.contains('A')) & (data['dte']>dte_low) & (data['dte']<dte_high)]
         tmpdf['tmpfact'] = tmpdf['close'].apply(lambda x: x/close_Threshold_mean if x<=close_Threshold_mean else close_Threshold_mean/x)
         tmpdf['tmpfact2'] = tmpdf['tmpfact']*tmpdf['tmpfact']#*tmpdf['tmpfact']*tmpdf['amount']
         tmpdf.sort_values(by='tmpfact2',ascending=False,inplace=True)
@@ -928,7 +928,7 @@ def processAll():
 
 def main():
 
-    global factor, dayr1,png_dict, tdxdata, df_optlist,df_full,opt_fine
+    global factor, dayr1,png_dict, tdxdata, df_optlist,df_full,opt_fine,hq_hosts,Exhq_hosts
 
     if (time.strftime("%H%M", time.localtime()) > '0900' and time.strftime("%H%M", time.localtime()) <= '0930'):
         print(f'waiting market, sleep {sleepsec*2}s')
@@ -962,7 +962,7 @@ def main():
         print(' *****  exception, recreate tdxdata then restart main ***** ')
         tdxdata.api.close()
         tdxdata.Exapi.close()
-        tdxdata = mytdxData()
+        tdxdata = mytdxData(hq_hosts,Exhq_hosts)
         time.sleep(10)
         main()
 
