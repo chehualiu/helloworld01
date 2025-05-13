@@ -1,18 +1,19 @@
 import json, datetime, os,re
-import numpy as np
 import warnings
 import time, requests
-import pandas as pd
+# import numpy as np
+# import pandas as pd
+# import matplotlib.ticker as mtick
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 import configparser
 
-from pytdx.hq import TdxHq_API
-from pytdx.exhq import TdxExHq_API
+# from pytdx.hq import TdxHq_API
+# from pytdx.exhq import TdxExHq_API
 # from utils.tdx_hosts import hq_hosts, Exhq_hosts
 from utils.tdx_indicator import *
 from utils.mytdx_cls import mytdxData
-from utils.HollowCandlePlotter_cls import HollowCandlestickPlotter
+# from utils.HollowCandlePlotter_cls import HollowCandlestickPlotter
+from utils.klinePlotter_cls import KlinePlotter
 from utils.playsound import playsound
 
 # 支持中文
@@ -805,9 +806,9 @@ def processAll():
 
     xa4 = xa.twinx()
     xa4.plot(df_plot.index, df_plot[('ccb', k)], label='ccb',linewidth=0.9, linestyle='-', color='green')
-    xa4.hlines(pre_ccb, xmin=df_plot.index.min(), xmax=maxx, color='green', linewidth=0.5, alpha=0.6,
+    xa4.hlines(pre_ccb, xmin=df_plot.index.min(), xmax=maxx, color='green', label='pre_ccb',linewidth=2, alpha=0.5,
               linestyle='--',zorder=-25)
-    xa4.set_yticks([])
+    # xa4.set_yticks([])
 
     xa5 = xa.twinx()
     xa5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
@@ -816,6 +817,8 @@ def processAll():
     xa6 = xa.twinx()
     xa6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
     xa6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    xa6.set_yticks([])
+
     xa.legend(loc='upper left', framealpha=0.1)
     xa3.legend(loc='lower left', framealpha=0.1)
 
@@ -823,7 +826,7 @@ def processAll():
     xa.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     xa.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    xa.text(0.7, 1.02, f'{k}涨跌:{pct:.2f}%, ccb涨跌:{ccb_pct:.2f}%',
+    xa.text(0.4, 1.02, f'{k}  涨跌:{pct:.2f}%, ccb涨跌:{ccb_pct:.2f}%',
              horizontalalignment='center', transform=xa.transAxes, fontsize=12, fontweight='bold', color='black')
 
     xb = axes[2][1]
@@ -875,19 +878,28 @@ def processAll():
     xb.legend(loc='center left', fontsize=10, frameon=True, framealpha=0.1)
     xb1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
 
-    collections0 = plotter.construct_collections(df_day_dp)
+    if kline_type == 'ohlc':
+        collections0 = plotter.construct_ohlc_collections(df_day_dp)
+        collections1 = plotter.construct_ohlc_collections(df_day_etf)
+        collections2 = plotter.construct_ohlc_collections(df_day_ccb)
+    else:
+        collections0 = plotter.construct_candlestick_collections(df_day_dp)
+        collections1 = plotter.construct_candlestick_collections(df_day_etf)
+        collections2 = plotter.construct_candlestick_collections(df_day_ccb)
+
+
     for collection in collections0:
         axes[0][0].add_collection(collection)
     axes[0][0].plot(df_day_dp.index, df_day_dp.m5, linewidth=0.8, linestyle='--', color='red')
     axes[0][0].plot(df_day_dp.index, df_day_dp.m20, linewidth=0.8, linestyle='-.', color='red')
 
-    collections1 = plotter.construct_collections(df_day_etf)
+
     for collection in collections1:
         axes[1][0].add_collection(collection)
     axes[1][0].plot(df_day_etf.index, df_day_etf.m5, linewidth=0.8, linestyle='--', color='red')
     axes[1][0].plot(df_day_etf.index, df_day_etf.m20, linewidth=0.8, linestyle='-.', color='red')
 
-    collections2 = plotter.construct_collections(df_day_ccb)
+
     for collection in collections2:
         axes[2][0].add_collection(collection)
     axes[2][0].plot(df_day_ccb.index, df_day_ccb.m5, linewidth=0.8, linestyle='--', color='green')
@@ -1014,9 +1026,10 @@ if __name__ == '__main__':
         'hollow': (1.0, 1.0, 1.0, 0.0),
         'alpha': 0.9
     }
-
     MPLconfig = {'_width_config': {'candle_width': 0.4, 'candle_linewidth': 0.8}}
-    plotter = HollowCandlestickPlotter(marketcolors=marketcolors, config=MPLconfig)
+    kline_type = 'candlestick'  # ohlc or candelstick
+    # plotter = HollowCandlestickPlotter(marketcolors=marketcolors, config=MPLconfig)
+    plotter = KlinePlotter(marketcolors=marketcolors, config=MPLconfig)
 
     tdxdata  = mytdxData(hq_hosts,Exhq_hosts)
 
@@ -1035,6 +1048,8 @@ if __name__ == '__main__':
 
     factor = calAmtFactor(5)
     factor = factor+[1.00]
+
+
 
     # processAll()
 
