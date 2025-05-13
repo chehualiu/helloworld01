@@ -602,6 +602,9 @@ def getETFdata():
     return df_pivot
 
 
+
+
+
 def processAll():
     global dp_boss, dp_amount, dp_amtcum,dp_bosspct,dp_preclose,df_optlist, new_optlist,timetitle
 
@@ -717,7 +720,22 @@ def processAll():
         del df_plot['index']
     df_plot.reset_index(drop=True, inplace=True)
     df_plot.reset_index(drop=False, inplace=True)
-    # df_plot = df_plot[:220]
+
+    lastclose = df_plot[('preclose', k)].values[1]
+    pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
+    ccb_pct = df_plot[('ccb', k)].dropna().values[-1] / pre_ccb*100 - 100
+
+    df_plot['cm20up'] =  (df_plot['cm20']>df_plot['cm20'].shift(1)).map({True:1,False:0})
+    df_plot['ccbm20up'] =  (df_plot[('ccbm20','')]>df_plot[('ccbm20','')].shift(1)).map({True:1,False:0})
+    df_plot['ccb_pct'] =  df_plot[('ccb',k)].apply(lambda x: x/pre_ccb*1-1)
+    ccb_open = df_plot[('ccb',k)].dropna().values[0]
+    df_plot['ccb_open2pct'] =  df_plot[('ccb',k)].apply(lambda x: x/ccb_open*1-1)
+    ccb_open_pct = df_plot['ccb_open2pct'].values[-1]*100
+
+    df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0) & ((df_plot['ccb_pct']<-0.03) | (df_plot['ccb_open2pct']<-0.03)), 'c_enterlong'] = df_plot[('close',k)]
+    # df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1), 'c_exitlong'] = df_plot['close']
+    df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1) & ((df_plot['ccb_pct']>0.03) | (df_plot['ccb_open2pct']>0.03)), 'c_entershort'] = df_plot[('close',k)]
+    # df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0), 'c_exitshort'] = df_plot['close']
 
     if len(df_plot) < 60:
         maxx = 60
@@ -782,14 +800,14 @@ def processAll():
     ax0b.legend(loc='lower left', framealpha=0.1)
 
     xa = axes[1][1]
-    lastclose = df_plot[('preclose', k)].values[1]
-    pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
-    ccb_pct = df_plot[('ccb', k)].dropna().values[-1] / pre_ccb*100 - 100
+
 
     xa.hlines(y=lastclose, xmin=df_plot.index.min(), label='lastClose', xmax=maxx, colors='aqua', linestyles='-', lw=2)
     xa.plot(df_plot.index, df_plot[('close', k)], label='etf', linewidth=1, linestyle='-', color='red', alpha=1.)
     xa.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.8, linestyle='--', color='red', alpha=1.)
     # xa.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
+    xa.scatter(df_plot.index, df_plot['c_enterlong'], marker='o', s=9, color='red', alpha=1)
+    xa.scatter(df_plot.index, df_plot['c_entershort'], marker='o', s=9, color='green', alpha=1)
 
     xa3 = xa.twinx()
     xa3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
@@ -826,7 +844,7 @@ def processAll():
     xa.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     xa.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    xa.text(0.4, 1.02, f'{k}  涨跌:{pct:.2f}%, ccb涨跌:{ccb_pct:.2f}%',
+    xa.text(0.4, 1.02, f'{k}  涨跌:{pct:.2f}%, ccb涨跌:{ccb_pct:.2f}%, ccbOpen:{ccb_open_pct:.2f}%',
              horizontalalignment='center', transform=xa.transAxes, fontsize=12, fontweight='bold', color='black')
 
     xb = axes[2][1]
