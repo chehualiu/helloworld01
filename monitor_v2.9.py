@@ -730,11 +730,12 @@ def processAll():
     df_plot['ccb_pct'] =  df_plot[('ccb',k)].apply(lambda x: x/pre_ccb*1-1)
     ccb_open = df_plot[('ccb',k)].dropna().values[0]
     df_plot['ccb_open2pct'] =  df_plot[('ccb',k)].apply(lambda x: x/ccb_open*1-1)
+    df_plot['ccb_above_open'] =  df_plot[('ccb',k)].apply(lambda x: 1 if x>ccb_open else 0)
     ccb_open_pct = df_plot['ccb_open2pct'].values[-1]*100
 
-    df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0) & ((df_plot['ccb_pct']<-0.03) | (df_plot['ccb_open2pct']<-0.03)), 'c_enterlong'] = df_plot[('close',k)]
+    df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0) & (df_plot['ccb_above_open']==0) & ((df_plot['ccb_pct']<-0.03) | (df_plot['ccb_open2pct']<-0.03)), 'c_enterlong'] = df_plot[('close',k)]
     # df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1), 'c_exitlong'] = df_plot['close']
-    df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1) & ((df_plot['ccb_pct']>0.03) | (df_plot['ccb_open2pct']>0.03)), 'c_entershort'] = df_plot[('close',k)]
+    df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1) & (df_plot['ccb_above_open']==1) & ((df_plot['ccb_pct']>0.03) | (df_plot['ccb_open2pct']>0.03)), 'c_entershort'] = df_plot[('close',k)]
     # df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0), 'c_exitshort'] = df_plot['close']
 
     if len(df_plot) < 60:
