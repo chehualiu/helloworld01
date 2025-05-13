@@ -624,7 +624,7 @@ def processAll():
 
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
-
+    df_etf1min['ccbm20'] = df_etf1min[('ccb','中证500')].rolling(20).mean()
     df_etf1min.reset_index(drop=False, inplace=True)
     df_etf1min['datetime'] = df_etf1min['datetime'].apply(lambda x: x.replace('13:00','11:30'))
 
@@ -786,11 +786,10 @@ def processAll():
     pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
     ccb_pct = df_plot[('ccb', k)].dropna().values[-1] / pre_ccb*100 - 100
 
-    xa.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-
-    xa.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
-    xa.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
-    xa.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
+    xa.hlines(y=lastclose, xmin=df_plot.index.min(), label='lastClose', xmax=maxx, colors='aqua', linestyles='-', lw=2)
+    xa.plot(df_plot.index, df_plot[('close', k)], label='etf', linewidth=1, linestyle='-', color='red', alpha=1.)
+    xa.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.8, linestyle='--', color='red', alpha=1.)
+    # xa.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
 
     xa3 = xa.twinx()
     xa3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
@@ -805,9 +804,10 @@ def processAll():
     xa3.set_yticks([])
 
     xa4 = xa.twinx()
-    xa4.plot(df_plot.index, df_plot[('ccb', k)], label='ccb',linewidth=0.9, linestyle='-', color='green')
+    xa4.plot(df_plot.index, df_plot[('ccb', k)], label='ccb',linewidth=1, linestyle='-', color='green')
+    xa4.plot(df_plot.index, df_plot[('ccbm20','')], label='ccbm20',linewidth=1, linestyle='--', color='green')
     xa4.hlines(pre_ccb, xmin=df_plot.index.min(), xmax=maxx, color='green', label='pre_ccb',linewidth=2, alpha=0.5,
-              linestyle='--',zorder=-25)
+              linestyle='-',zorder=-25)
     # xa4.set_yticks([])
 
     xa5 = xa.twinx()
