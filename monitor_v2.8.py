@@ -1,21 +1,14 @@
 import json, datetime, os,re
-import numpy as np
 import warnings
 import time, requests
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
 
-# from utils.mplfinance import *
 import configparser
 
-from pytdx.hq import TdxHq_API
-from pytdx.exhq import TdxExHq_API
-# from utils.tdx_hosts import hq_hosts, Exhq_hosts
 from utils.tdx_indicator import *
 from utils.mytdx_cls import mytdxData
-from utils.playsound import playsound
 
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -37,361 +30,6 @@ np.random.seed(42)
 if not os.path.exists('output'):
     os.makedirs('output')
 
-
-# class mytdxData(object):
-#
-#     def __init__(self,hq_hosts,Exhq_hosts):
-#
-#         api = TdxHq_API(heartbeat=True)
-#         Exapi = TdxExHq_API(heartbeat=True)
-#         api_connected = False
-#         Exapi_connected = False
-#
-#         for i in range(len(hq_hosts)):
-#             name = hq_hosts[i][0]
-#             ip = hq_hosts[i][1]
-#             port = hq_hosts[i][2]
-#             if self.TestConnection(api, 'HQ', ip, port) == False:  # or \
-#                 continue
-#             else:
-#                 api_connected = True
-#                 print(f'connection to HQ server[{i}]!{name}{ip}')
-#                 break
-#         if api_connected == False:
-#             print('All HQ server Failed!!!')
-#             exit(0)
-#
-#         for i in range(len(Exhq_hosts)):
-#             name = Exhq_hosts[i][0]
-#             ip = Exhq_hosts[i][1]
-#             port = Exhq_hosts[i][2]
-#             if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:  # or \
-#                 continue
-#             else:
-#                 Exapi_connected = True
-#                 print(f'connection to ExHQ server[{i}]!{name}{ip}')
-#                 break
-#         if Exapi_connected == False:
-#             print('All ExHQ server Failed!!!')
-#             exit(0)
-#
-#         self.api = api
-#         self.Exapi = Exapi
-#         self.useless_cols = ['year','month','day','hour','minute','preclose','change']
-#         self.period_dict =  {"5min": 0, "15min": 1, "30min": 2, "60min": 3, "week": 5,
-#                   "month": 6, "1min": 8, "day": 9, "quater": 10, "year": 11}
-#
-#     def TestConnection(self, Api, type, ip, port):
-#         if type == 'HQ':
-#             try:
-#                 is_connect = Api.connect(ip, port)
-#             except Exception as e:
-#                 print('connect to HQ Exception!')
-#                 exit(0)
-#             return False if is_connect is False else True
-#
-#         elif type == 'ExHQ':
-#             try:
-#                 is_connect = Api.connect(ip, port)
-#             except Exception as e:
-#                 print('connect to Ext HQ Exception!')
-#                 exit(0)
-#             return False if is_connect is False else True
-#
-#     def cal_right_price(self, input_stock_data, type='前复权'):
-#         """
-#         :param input_stock_data: 标准股票数据，需要'收盘价', '涨跌幅'
-#         :param type: 确定是前复权还是后复权，分别为'后复权'，'前复权'
-#         :return: 新增一列'后复权价'/'前复权价'的stock_data
-#         """
-#         # 计算收盘复权价
-#         stock_data = input_stock_data.copy()
-#         num = {'后复权': 0, '前复权': -1}
-#
-#         price1 = stock_data['close'].iloc[num[type]]
-#         stock_data['复权价_temp'] = (stock_data['change'] + 1.0).cumprod()
-#         price2 = stock_data['复权价_temp'].iloc[num[type]]
-#         stock_data['复权价'] = stock_data['复权价_temp'] * (price1 / price2)
-#         stock_data.pop('复权价_temp')
-#
-#         # 计算开盘复权价
-#         stock_data['复权价_开盘'] = stock_data['复权价'] / (stock_data['close'] / stock_data['open'])
-#         stock_data['复权价_最高'] = stock_data['复权价'] / (stock_data['close'] / stock_data['high'])
-#         stock_data['复权价_最低'] = stock_data['复权价'] / (stock_data['close'] / stock_data['low'])
-#
-#         return stock_data[['复权价_开盘', '复权价', '复权价_最高', '复权价_最低']]
-#
-#     def get_xdxr_EM(self,code):
-#         if len(code)!=5:
-#             return pd.DataFrame()
-#         url = 'https://datacenter.eastmoney.com/securities/api/data/v1/get?reportName=RPT_HKF10_MAIN_DIVBASIC'+ \
-#               '&columns=SECURITY_CODE,UPDATE_DATE,REPORT_TYPE,EX_DIVIDEND_DATE,DIVIDEND_DATE,TRANSFER_END_DATE,YEAR,PLAN_EXPLAIN,IS_BFP'+ \
-#               '&quoteColumns=&filter=(SECURITY_CODE="'+code+'")(IS_BFP="0")&pageNumber=1&pageSize=3&sortTypes=-1,-1'+ \
-#               '&sortColumns=NOTICE_DATE,EX_DIVIDEND_DATE&source=F10&client=PC&v=043409724372028'
-#         try:
-#             res = requests.get(url)
-#             data1 = pd.DataFrame(json.loads(res.text)['result']['data'])
-#             if len(data1)==0:
-#                 return pd.DataFrame()
-#             else:
-#                 data1.rename(columns={'EX_DIVIDEND_DATE':'date','SECURITY_CODE':'code','REPORT_TYPE':'type','PLAN_EXPLAIN':'deal'}, inplace=True)
-#                 data1 = data1[data1['type'].str.contains('分配')]
-#                 data1['date'] = data1['date'].apply(lambda x: x.replace('/','-'))
-#                 data1['deal'] = data1['deal'].apply(lambda x: float(re.findall(r'\d+\.\d+(?=[^.\d]*$)',x)[-1]))
-#                 return data1
-#         except:
-#             return pd.DataFrame()
-#
-#     def get_market_code(self,code):
-#
-#         mkt = None
-#         fuquan = False
-#         isIndex = False
-#
-#         if '#' in code:
-#             mkt = int(code.split('#')[0])
-#             code = code.split('#')[1]
-#
-#         if code[:2] == 'ZS':
-#             code = code[-6:]
-#             isIndex = True
-#             fuquan = False
-#
-#         if code.isdigit() and len(code)==6: # A股
-#             if isIndex==True:
-#                 mkt = 1 if code[:2] == '00' else 0 # 上证指数，深证成指
-#             elif code[:2] in ['15','00','30','16','12','39','18']: # 深市
-#                 mkt = 0 # 深交所
-#                 fuquan = True
-#             elif code[:2] in ['51','58','56','60','68','50','88','11','99']:
-#                 mkt = 1 # 上交所
-#                 fuquan = True
-#             elif code[:2] in ['43','83','87']:
-#                 mkt = 2 # 北交所pass
-#                 fuquan = True
-#             else:
-#                 pass
-#
-#             if code[:2] in ['39','88','99']:
-#                 isIndex = True
-#                 fuquan = False
-#
-#         elif code.isdigit() and len(code)==5: # 港股
-#             mkt = 71
-#             fuquan = True
-#         elif code.isdigit() and len(code)==8: # 期权
-#             if code[:2] == '10':
-#                 mkt = 8
-#             elif code[:2] == '90':
-#                 mkt = 9
-#             else:
-#                 mkt = None
-#         elif code.isalpha() : # 美股
-#             mkt = None
-#         elif len(code) == 5 and code[0]=='U':    # 期权指标如持仓比
-#             mkt = 68
-#         else:
-#             mkt = None
-#         return mkt,code,fuquan,isIndex
-#
-#
-#     def fuquan202409(self, code, backset, qty=200, period=9):
-#
-#         mkt,code,fuquan,isIndex = self.get_market_code(code)
-#
-#         if period!=9:           # 如果不是日线级别，跳过复权直接返回。
-#             fuquan = False
-#
-#         if code[:2] in ['88','11','12','39','99','zz','zs']:  # 指数\债券不复权
-#             fuquan = False
-#
-#         if mkt is None:
-#             print(code, 'unknown code')
-#             return pd.DataFrame()
-#
-#         if mkt in [0,1,2]:  # A股
-#             if qty<=600:
-#                 if isIndex==False:
-#                     df_k = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 0 + backset, qty))
-#                 else:
-#                     df_k = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 0 + backset, qty))
-#             elif isIndex==False:
-#                 df_k = pd.DataFrame()
-#                 for i in range(qty//600):
-#                     temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*i+backset, 600))
-#                     df_k = pd.concat([temp, df_k])
-#                 temp = pd.DataFrame(self.api.get_security_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-#                 df_k = pd.concat([temp, df_k])
-#             else:
-#                 df_k = pd.DataFrame()
-#                 for i in range(qty//600):
-#                     temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*i+backset, 600))
-#                     df_k = pd.concat([temp, df_k])
-#                 temp = pd.DataFrame(self.api.get_index_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-#                 df_k = pd.concat([temp, df_k])
-#
-#             if len(df_k) ==0:
-#                 return pd.DataFrame()
-#
-#             if fuquan:   # A股复权
-#                 df_fuquan = self.api.get_xdxr_info(mkt, code)
-#                 if df_fuquan is None:
-#                     return df_k
-#                 elif len(df_fuquan) == 0:
-#                     return df_k
-#                 else:
-#                     df_fuquan = pd.DataFrame(df_fuquan, index=[i for i in range(len(df_fuquan))])
-#                     df_fuquan['date'] = df_fuquan.apply(
-#                         lambda x: str(x.year) + '-' + str(x.month).zfill(2) + '-' + str(x.day).zfill(2), axis=1)
-#
-#                     df_k['preclose'] = df_k['close'].shift(1)
-#                     df_k['change'] = df_k['close']/df_k['preclose']-1
-#                     if 'date' not in df_k.columns:
-#                         df_k['date'] = df_k['datetime'].apply(lambda x: x[:10])
-#                     for i, row in df_fuquan.iterrows():
-#                         if row['date'] not in list(df_k['date']):
-#                             continue
-#                         elif row['name'] == '除权除息':
-#                             preclose = df_k.loc[df_k['date'] == row['date'], 'preclose'].values[0]
-#                             thisclose = df_k.loc[df_k['date'] == row['date'], 'close'].values[0]
-#                             if row['fenhong'] > 0 and row['songzhuangu'] > 0:
-#                                 change_new = (thisclose * (row['songzhuangu'] / 10 + 1) + row[
-#                                     'fenhong'] / 10 ) / preclose - 1
-#                                 df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
-#                             elif row['fenhong'] > 0:
-#                                 change_new = (thisclose + row['fenhong'] / 10) / preclose - 1
-#                                 df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
-#                             elif row['songzhuangu'] > 0:
-#                                 change_new = (thisclose * (row['songzhuangu'] / 10 + 1)) / preclose - 1
-#                                 df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
-#                         elif row['name'] == '扩缩股':
-#                             preclose = df_k.loc[df_k['date'] == row['date'], 'preclose']
-#                             thisclose = df_k.loc[df_k['date'] == row['date'], 'close']
-#                             change_new = (thisclose * row['suogu']) / preclose - 1
-#                             df_k.loc[df_k['date'] == row['date'], 'change'] = change_new
-#                         elif row['name'] in ['股本变化', '非流通股上市', '转配股上市', '送配股上市']:
-#                             continue
-#                         else:
-#                             print(code, 'unknown name:', row['name'])
-#                     df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
-#                     return df_k
-#             else: # A股不复权
-#                 return df_k
-#
-#         elif mkt in [8,9]:  # 期权
-#             if qty<=600:
-#                 df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
-#             else:
-#                 df_k = pd.DataFrame()
-#                 for i in range(qty//600):
-#                     temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-#                     df_k = pd.concat([temp, df_k])
-#                 temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-#                 df_k = pd.concat([temp, df_k])
-#             return df_k
-#
-#         elif mkt == 71:  # 港股
-#             if qty<=600:
-#                 df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
-#             else:
-#                 df_k = pd.DataFrame()
-#                 for i in range(qty//600):
-#                     temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-#                     df_k = pd.concat([temp,df_k ])
-#                 temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-#                 df_k = pd.concat([temp, df_k])
-#
-#             if fuquan : # 港股通复权
-#                 df_fuquan = self.get_xdxr_EM(code)  # 港股通复权
-#                 if len(df_fuquan)==0:
-#                     return df_k
-#                 for i,row in df_fuquan.iterrows():
-#                     if row['date'] not in list(df_k['date']):
-#                         continue
-#                     preclose = df_k.loc[df_k['date']==row['date'], 'preclose']
-#                     thisclose = df_k.loc[df_k['date']==row['date'], 'close']
-#                     change_new = (thisclose+row['deal']*0.99)/preclose-1
-#                     df_k.loc[df_k['date']==row['date'], 'change'] = change_new
-#                 df_k[['open', 'close', 'high', 'low']] = self.cal_right_price(df_k, type='前复权')
-#                 return df_k
-#             else: # 港股通不复权
-#                 return df_k
-#
-#         elif mkt == 68:  # 期权持仓比
-#             if qty<=600:
-#                 df_k = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 0 + backset, qty))
-#             else:
-#                 df_k = pd.DataFrame()
-#                 for i in range(qty//600):
-#                     temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*i+backset, 600))
-#                     df_k = pd.concat([temp,df_k ])
-#                 temp = pd.DataFrame(self.Exapi.get_instrument_bars(period, mkt, code, 600*(qty//600)+backset, qty%600))
-#                 df_k = pd.concat([temp, df_k])
-#             return df_k
-#
-#
-#         else:   # 未知 mkt
-#             print(code, f'unknown {mkt}')
-#             return pd.DataFrame()
-#
-#     def get_disk_port_data_stock(self,stock):
-#         mkt,code,fuquan,isIndex = self.get_market_code(stock)
-#
-#         if mkt in [0,1,2]:
-#             result =pd.DataFrame(self.api.get_security_quotes([(mkt, stock)]))
-#             result.rename(columns={'code':'code','last_close':'昨收','bid1':'买一','ask1':'卖一',
-#                                    'bid2': '买二', 'ask2': '卖二', 'bid3': '买三', 'ask3': '卖三',
-#                                    'bid4': '买四', 'ask4': '卖四', 'bid5': '买五', 'ask5': '卖五',
-#                                    'bid_vol1': '买一量', 'ask_vol1': '卖一量',
-#                                    'bid_vol2': '买二量', 'ask_vol2': '卖二量', 'bid_vol3': '买三量',
-#                                    'ask_vol3': '卖三量', 'bid_vol4': '买四量', 'ask_vol4': '卖四量', 'bid_vol5': '买五量',
-#                                    'ask_vol5': '卖五量'}, inplace=True)
-#         else:
-#             result = pd.DataFrame(self.Exapi.get_instrument_quote(mkt,stock))
-#             result.rename(columns={'code':'code','pre_close':'昨收','bid1':'买一','ask1':'卖一',
-#                                    'bid2': '买二', 'ask2': '卖二', 'bid3': '买三', 'ask3': '卖三',
-#                                    'bid4': '买四', 'ask4': '卖四', 'bid5': '买五', 'ask5': '卖五',
-#                                    'bid_vol1': '买一量', 'ask_vol1': '卖一量',
-#                                    'bid_vol2': '买二量', 'ask_vol2': '卖二量', 'bid_vol3': '买三量',
-#                                    'ask_vol3': '卖三量', 'bid_vol4': '买四量', 'ask_vol4': '卖四量', 'bid_vol5': '买五量',
-#                                    'ask_vol5': '卖五量'}, inplace=True)
-#         if len(result)==0:
-#             return pd.DataFrame()
-#         return result[['code','昨收','卖五','卖四','卖三','卖二','卖一','买一','买二','买三','买四','买五',
-#                        '卖五量','卖四量','卖三量','卖二量','卖一量','买一量','买二量','买三量','买四量','买五量']].T
-#
-#
-#     def get_minute_data(self, code, day):
-#         mkt,code,fuquan,isIndex = self.get_market_code(code)
-#
-#         if isinstance(day, str):
-#             day = int(day.replace('-',''))
-#
-#         if mkt in [0,1,2] and isIndex==False:
-#             data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
-#         elif mkt in [0,1,2] and isIndex==True:
-#             data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
-#         else:
-#             data = pd.DataFrame()
-#         return data
-#
-#     def get_kline_data(self,code, backset=0, klines=200, period=9):
-#         df=self.fuquan202409(code, backset, klines, period)
-#
-#         if len(df)==0:
-#             return pd.DataFrame()
-#
-#         if '成交额' not in df.columns:
-#             df.rename(columns={'vol': 'volume', 'amount': '成交额'}, inplace=True)
-#             df['preclose'] = df['close'].shift(1)
-#             df['振幅'] = df.apply(lambda x: (x['high'] - x['low']) / x['preclose'], axis=1)
-#             df['涨跌幅'] = df.apply(lambda x: x['close'] / x['preclose'] - 1, axis=1)
-#         df.dropna(subset=['preclose'],inplace=True)
-#         for col in self.useless_cols:
-#             if col in df.columns:
-#                 del df[col]
-#         df.reset_index(drop=True, inplace=True)
-#         return df
 
 def getOptionsTformat(df_4T):
 
@@ -1017,22 +655,18 @@ def plot_fullday(df):
     axes[0][0].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
 
 
-    ax0b = axes[0][0].twinx()
     ax0c = axes[0][0].twinx()
     ax0d = axes[0][0].twinx()
     ax0e = axes[0][0].twinx()
 
-    ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
-    ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
-    ax0b.set_yticks([])
     ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax0c.set_yticks([])
     ax0d.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
 
     ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
     ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
-    ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=25, c='red', alpha=0.7)
-    ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=25, c='green', alpha=0.8)
+    ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=16, c='red', alpha=0.6)
+    ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=16, c='green', alpha=0.7)
     ax0e.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
     ax0e.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
 
@@ -1040,7 +674,7 @@ def plot_fullday(df):
     ax0e.set_ylim(-10, 10)
     ax0e.set_yticks([])
 
-    axes[0][0].text(0.5, 1.02, f'大盘资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿 ',
+    axes[0][0].text(0.5, 1.02, f'成交量(绿线):{dp_amount:.0f}亿   {timetitle}',
                  horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold',
                  color='black')
 
@@ -1052,7 +686,6 @@ def plot_fullday(df):
     axes[0][0].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
     ax0e.legend(loc='upper left', framealpha=0.1)
-    ax0b.legend(loc='lower left', framealpha=0.1)
 
     keylist = list(etf_dict.keys())
     funcx0 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[0])].values[1] - 1) * 100)
@@ -1060,16 +693,21 @@ def plot_fullday(df):
     funcx2 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[2])].values[1] - 1) * 100)
     funcx3 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[3])].values[1] - 1) * 100)
 
-
     axes[0][1].plot(df_plot.index, df_plot['zdjs'], label='上涨家数', linewidth=1, color='red')
     axes[0][1].hlines(df_plot['zdjs'].min(), xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.0, zorder=-25)
     axes[0][1].minorticks_on()
     axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
     axes[0][1].legend(loc='upper right', framealpha=0.1)
-    axes[0][1].text(0.5, 1.02, f'上涨家数:{df_plot["zdjs"].values[-1]:.0f}  {timetitle}',
+    axes[0][1].text(0.5, 1.02, f'主力(蓝线):{dp_boss:.0f}亿  上涨家数:{df_plot["zdjs"].values[-1]:.0f}',
                  horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
                  color='black')
+
+    ax0b = axes[0][1].twinx()
+    ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
+    ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    # ax0b.set_yticks([])
+    ax0b.legend(loc='upper left', framealpha=0.1)
 
     # 第二行：两个子图 (1, 0) 和 (1, 1)
     for i, k in enumerate(etf_dict.keys()):
@@ -1087,15 +725,15 @@ def plot_fullday(df):
         x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
         x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
         x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
-        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='.', s=36, c='red', alpha=0.4)
-        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='.', s=36, c='green', alpha=0.7)
+        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='o', s=9, c='red', alpha=0.5)
+        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='o', s=9, c='green', alpha=0.7)
 
         x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx0 if i == 0 else funcx1))
 
         x3 = x.twinx()
         x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
         x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
@@ -1116,7 +754,7 @@ def plot_fullday(df):
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
         x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
-        x.legend(loc='upper left', framealpha=0.1)
+        # x.legend(loc='upper left', framealpha=0.1)
         x3.legend(loc='lower left', framealpha=0.1)
 
         x.minorticks_on()
@@ -1124,9 +762,9 @@ def plot_fullday(df):
         x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
         if k in png_dict.keys():
-            x.text(0.5, 0.88, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
+            x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                    fontweight='bold', color='black')
-        x.text(0.5, 1.03, f'{k} 涨跌:{pct:.2f}%',
+        x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%',
                horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     # 第三行：两个子图 (2, 0) 和 (2, 1)
@@ -1145,15 +783,15 @@ def plot_fullday(df):
         x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
         x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
         x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
-        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='.', s=36, c='red', alpha=0.4)
-        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='.', s=36, c='green', alpha=0.7)
+        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='o', s=9, c='red', alpha=0.5)
+        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='o', s=9, c='green', alpha=0.7)
 
         x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2 if i == 2 else funcx3))
 
         x3 = x.twinx()
         x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
         x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
@@ -1174,7 +812,7 @@ def plot_fullday(df):
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
         x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
-        x.legend(loc='upper left', framealpha=0.1)
+        # x.legend(loc='upper left', framealpha=0.1)
         x3.legend(loc='lower left', framealpha=0.1)
 
         x.minorticks_on()
@@ -1182,9 +820,9 @@ def plot_fullday(df):
         x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
         if k in png_dict.keys():
-            x.text(0.5, 0.88, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
+            x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                    fontweight='bold', color='black')
-        x.text(0.5, 1.03, f'{k} 涨跌:{pct:.2f}%',
+        x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%',
                horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()

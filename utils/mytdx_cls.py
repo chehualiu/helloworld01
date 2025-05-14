@@ -20,7 +20,7 @@ class mytdxData(object):
                 continue
             else:
                 api_connected = True
-                print(f'connection to HQ server[{i}]!{name}{ip}')
+                print(f'connection to HQ server[{i}]! {name} {ip}')
                 break
         if api_connected == False:
             print('All HQ server Failed!!!')
@@ -34,7 +34,7 @@ class mytdxData(object):
                 continue
             else:
                 Exapi_connected = True
-                print(f'connection to ExHQ server[{i}]!{name}{ip}')
+                print(f'connection to ExHQ server[{i}]! {name} {ip}')
                 break
         if Exapi_connected == False:
             print('All ExHQ server Failed!!!')
