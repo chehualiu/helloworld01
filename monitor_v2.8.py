@@ -715,8 +715,24 @@ def getSingleCCBData(tdxData, name, backset=0, klines=200, period=9):
     if len(df_ccb)==0:
         print('getSingleCCBData {code} ccb error, quitting')
         return
+    tmp = df_ccb[df_ccb['datetime'].str.contains('15:00')]
+    if '15:00' in df_ccb['datetime'].values[-1]:
+        preidx = tmp.index[-2]
+    else:
+        preidx = tmp.index[-1]
+    pre_ccb = df_ccb.close.iloc[preidx]
+    ccb_open = df_ccb.close.iloc[preidx+1]
     df_ccb.rename(columns={'close':'ccb','high':'ccbh','low':'ccbl','open':'ccbo'},inplace=True)
-    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo']], df_single[['datetime','open','close','high','low','volume','amount']], on='datetime',how='left')
+    df_ccb['ccbm20'] = df_ccb['ccb'].rolling(20).mean()
+    df_ccb['ccbm20up'] = (df_ccb['ccbm20']>df_ccb['ccbm20'].shift(1)).astype('int')
+    df_ccb['pre_ccb'] = pre_ccb
+    df_ccb['ccb_open'] = ccb_open
+    df_ccb['ccb_pct'] = df_ccb['ccb'].apply(lambda x: x/pre_ccb*1-1)
+    df_ccb['ccb_open2pct'] =  df_ccb['ccb'].apply(lambda x: x/ccb_open*1-1)
+    df_ccb['ccb_above_open'] =  df_ccb['ccb'].apply(lambda x: 1 if x>ccb_open else 0)
+
+    data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo','ccbm20','ccb_pct','pre_ccb','ccb_open','ccb_open2pct','ccb_above_open','ccbm20up']],
+                    df_single[['datetime','open','close','high','low','volume','amount']], on='datetime',how='left')
 
 
     return data
@@ -934,6 +950,7 @@ def getETFdata():
         df_single['cm5'] = df_single['close'].rolling(5).mean()
         df_single['cm10'] = df_single['close'].rolling(10).mean()
         df_single['cm20'] = df_single['close'].rolling(20).mean()
+        df_single['cm20up'] = (df_single['cm20']> df_single['cm20'].shift(1)).astype('int')
 
         df_single['chhv60'] = df_single['high'].rolling(60).max()
         df_single['cllv60'] = df_single['low'].rolling(60).min()
@@ -962,236 +979,51 @@ def getETFdata():
 
         df_single['etf'] = k
         df_all = pd.concat([df_all, df_single])
-    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'close', 'high', 'low','open','preclose','volume',
-               'cm5','cm20','ccp60','pivotup','pivotdw','crossup','crossdw','up','dw','bosssigup','bosssigdw','boss','amount'], dropna=False)
+    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'ccbm20','ccbm20up','ccb_pct','pre_ccb','ccb_open','ccb_open2pct','ccb_above_open',
+                'close', 'high', 'low','open','preclose','volume', 'cm5','cm20','cm20up',
+                'ccp60','pivotup','pivotdw','crossup','crossdw','up','dw','bosssigup','bosssigdw','boss','amount'], dropna=False)
 
     return df_pivot
 
-def plot_morning(df):
-    global dp_boss, dp_amount,dp_amtcum, dp_bosspct,dp_preclose, timetitle,seq
-
-    df_plot = df.copy()
-    df_plot.reset_index(drop=True, inplace=True)
-    df_plot.reset_index(drop=False, inplace=True)
-
-    if int(seq)<30:
-        maxx = 60
-    elif int(seq)<60:
-        maxx = 90
-    else:
-        maxx = 120
-
-    fig, axes = plt.subplots(3, 2, figsize=(14,10))
-    for ax in axes[:,:1]:
-        ax[0].set_xticks(np.arange(0, 121, 30))
-        ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
-    for ax in axes[:,1:]:
-        ax[0].set_xticks(np.arange(0, 121, 30))
-        ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
-
-    axes[0][0].hlines(y=dp_preclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-    axes[0][0].plot(df_plot.index, df_plot['close'],  linewidth=1, color='red')
-    axes[0][0].plot(df_plot.index, df_plot['cm20'],  linewidth=0.8, color='red',linestyle='--')
-    axes[0][0].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
-
-    ax00b = axes[0][0].twinx()
-    ax00b.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
-    ax00b.set_yticks([])
-    ax00c = axes[0][0].twinx()
-    ax00c.plot(df_plot.index, df_plot.boss, color='blue', linewidth=1, alpha=1)
-    ax00c.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
-
-    ax00d = axes[0][0].twinx()
-    ax00d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
-    ax00d.scatter(df_plot.index, df_plot['pivotdw'], label='转折点',marker='v', s=49, c='green', alpha=0.7)
-    ax00d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
-    ax00d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
-    ax00d.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
-    ax00d.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
-
-
-    ax00d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax00d.plot(df_plot.index, df_plot.dpbosspct, color='k', linewidth=1, alpha=0.7)
-    ax00d.set_ylim(-10, 10)
-    ax00d.set_yticks([])
-
-    func00 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x,(x/dp_preclose-1)*100)
-    axes[0][0].yaxis.set_major_formatter(mtick.FuncFormatter(func00))
-
-    axes[0][0].text(0.5, 1.02, f' {timetitle}',
-             horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold', color='black')
-    axes[0][0].text(0.5, 0.95, f'主力资金:{dp_boss:.0f}亿 成交额:{dp_amtcum:.0f}亿 主力占比:{dp_bosspct:.1f}%',
-             horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold', color='black')
-
-    axes[0][0].minorticks_on()
-    axes[0][0].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-    axes[0][0].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-
-    if int(seq) > 90:
-        ax00d.legend(loc='upper left',framealpha=0.1)
-        # ax00b[0].legend(loc='lower left',framealpha=0.1)
-    else:
-        ax00d.legend(loc='upper right', framealpha=0.1)
-
-    axes[0][1].plot(df_plot.index, df_plot['close'],  label='上证', linewidth=1, color='red')
-    ax01b = axes[0][1].twinx()
-    ax01c = axes[0][1].twinx()
-    ax01d = axes[0][1].twinx()
-    ax01b.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
-    ax01c.plot(df_plot.index, df_plot.boss, label='主力', color='blue', linewidth=1, alpha=1)
-    ax01c.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
-    # ax01c.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
-    ax01c.set_yticks([])
-
-    ax01d.scatter(df_plot.index, df_plot['pivotup'], label='转折点',marker='^', s=49, c='red', alpha=0.6)
-    ax01d.scatter(df_plot.index, df_plot['pivotdw'], label='转折点',marker='v', s=49, c='green', alpha=0.7)
-    ax01d.scatter(df_plot.index, df_plot['crossup'], label='底部涨',marker='D', s=25, c='red', alpha=0.7)
-    ax01d.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌',marker='D', s=25, c='green', alpha=0.8)
-    ax01d.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
-    ax01d.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
-    ax01d.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax01d.set_ylim(-10, 10)
-    ax01d.set_yticks([])
-
-    axes[0][1].text(0.5, 1.02, f'主力资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿',
-             horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold', color='black')
-
-    axes[0][1].minorticks_on()
-    axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-    axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-
-    func01 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x,(x/dp_preclose-1)*100)
-    axes[0][1].yaxis.set_major_formatter(mtick.FuncFormatter(func01))
-
-    # axes[0][1].legend(loc='upper right',framealpha=0.1)
-    if int(seq) < 90:
-        ax01b.legend(loc='lower right',framealpha=0.1)
-        ax01c.legend(loc='center right',framealpha=0.1)
-    else:
-        ax01b.legend(loc='lower left',framealpha=0.1)
-        ax01c.legend(loc='center left',framealpha=0.1)
-
-    keylist =  list(etf_dict.keys())
-    funcx0 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[0])].values[1] - 1) * 100)
-    funcx1 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[1])].values[1] - 1) * 100)
-    funcx2 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[2])].values[1] - 1) * 100)
-    funcx3 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[3])].values[1] - 1) * 100)
-
-    for i,k in enumerate(etf_dict.keys()):
-
-        if i==0:
-            x = axes[1][0]
-        elif i==1:
-            x = axes[1][1]
-        elif i==2:
-            x = axes[2][0]
-        else:
-            x = axes[2][1]
-        lastclose = df_plot[('preclose', k)].values[1]
-        pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
-        x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-        # x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up',marker='o', alpha=0.8, zorder=-30)
-        # x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw',marker='o', alpha=0.8, zorder=-30)
-
-        x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
-        # x.plot(df_plot.index, df_plot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
-        x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
-        # x.vlines(openbar, ymin=df_plot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
-        x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
-
-        x3 = x.twinx()
-        x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点',s=25, c='r', marker='^', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点',s=25, c='g', marker='v', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('crossup',k)], label='底部涨',s=16, c='r', marker='D', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('crossdw',k)], label='顶部跌',s=16, c='g', marker='D', alpha=0.7,zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('up',k)], marker='s', s=9, c='red', alpha=0.3)
-        x3.scatter(df_plot.index, df_plot[('dw',k)], marker='s', s=9, c='green', alpha=0.3)
-        x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k',linewidth=0.5, alpha=0.6, zorder=-25)
-        x3.set_ylim(-10, 10)
-        x3.set_yticks([])
-
-        x4 = x.twinx()
-        x4.plot(df_plot.index, df_plot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
-        # x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
-        x4.set_yticks([])
-
-        x5 = x.twinx()
-        x5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
-        x5.set_yticks([])
-
-        x6 = x.twinx()
-        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.9, linestyle='-', color='blue')
-        x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
-        # x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--', lw=2, alpha=0.5,zorder=-20)
-        # x6.set_yticks([])
-
-        if int(seq) < 90:
-            x.legend(loc='upper right',framealpha=0.1)
-            x3.legend(loc='center right',framealpha=0.1)
-        else:
-            x.legend(loc='upper left',framealpha=0.1)
-            x3.legend(loc='center left',framealpha=0.1)
-
-        if i==0:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx0))
-        elif i==1:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx1))
-        elif i==2:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2))
-        else:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx3))
-
-        x.minorticks_on()
-        x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-        x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-
-        if k in png_dict.keys():
-            x.text(0.35,0.95,  png_dict[k], horizontalalignment='center',transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
-        x.text(0.9, 1.02, f'涨跌:{pct:.2f}%',
-                 horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
-
-        # x.text(0.6, 0.05, f'主力:{df_plot[("boss", k)].ffill().values[-1]:.0f}亿  成交额:{df_plot[f"amtcum_{k}"].ffill().values[-1]:.0f}亿  主力占比:{df_plot[f"bosspct_{k}"].ffill().values[-1]:.1f}%',
-        #          horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
-
-    plt.tight_layout()
-    # plt.suptitle(timetitle,x=0.6, y=0.98)
-    plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_1H.png')
-    # plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
-
-    fig.clf()
-    plt.close(fig)
 
 def plot_fullday(df):
-    global dp_boss, dp_amount, dp_preclose, timetitle,seq
+    global dp_boss, dp_amount, dp_preclose, timetitle
 
     df_plot = df.copy()
     df_plot.reset_index(drop=True, inplace=True)
     df_plot.reset_index(drop=False, inplace=True)
-
-    if int(seq)<150:
-        maxx = 150
-    elif int(seq)<180:
+    datalen = len(df_plot['datetime'].dropna())
+    if datalen < 60:
+        maxx = 60
+    elif datalen < 120:
+        maxx = 120
+    elif datalen < 180:
         maxx = 180
     else:
         maxx = 240
 
-    fig, axes = plt.subplots(5, 1, figsize=(14, 10))
-    for ax in axes:
-        ax.set_xticks(np.arange(0, 241, 30))
-        ax.set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
+    fig, axes = plt.subplots(3, 2, figsize=(14, 10))  # 修改为 3 行 2 列布局
 
-    axes[0].hlines(y=dp_preclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-    axes[0].plot(df_plot.index, df_plot['close'], linewidth=1, color='red')
-    axes[0].plot(df_plot.index, df_plot['cm20'], linewidth=0.8, color='red', linestyle='--')
-    axes[0].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
+    # 设置 x 轴刻度标签
+    for ax_row in axes:
+        for ax in ax_row:
+            ax.set_xticks(np.arange(0, 241, 30))
+            ax.set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
 
-    ax0b = axes[0].twinx()
-    ax0c = axes[0].twinx()
-    ax0d = axes[0].twinx()
-    ax0e = axes[0].twinx()
+    # 第一个子图 (0, 0)
+    axes[0][0].hlines(y=dp_preclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
+    axes[0][0].plot(df_plot.index, df_plot['close'], linewidth=1, color='red')
+    axes[0][0].plot(df_plot.index, df_plot['cm20'], linewidth=0.8, color='red', linestyle='--')
+    axes[0][0].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
+
+
+    ax0b = axes[0][0].twinx()
+    ax0c = axes[0][0].twinx()
+    ax0d = axes[0][0].twinx()
+    ax0e = axes[0][0].twinx()
 
     ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
-    ax0b.plot(df_plot.index, df_plot.bossm10, color='blue',  linestyle='--', linewidth=0.5,  alpha=1)
+    ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
     ax0b.set_yticks([])
     ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax0c.set_yticks([])
@@ -1207,71 +1039,73 @@ def plot_fullday(df):
     ax0e.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
     ax0e.set_ylim(-10, 10)
     ax0e.set_yticks([])
-    axes[0].text(0.5, 1.02, f'大盘资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿  {timetitle}',
-                 horizontalalignment='center', transform=axes[0].transAxes, fontsize=12, fontweight='bold',
+
+    axes[0][0].text(0.5, 1.02, f'大盘资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿 ',
+                 horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold',
                  color='black')
 
-    funcax0 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x,(x/dp_preclose-1)*100)
-    axes[0].yaxis.set_major_formatter(mtick.FuncFormatter(funcax0))
+    funcax0 = lambda x, pos: "{:.0f}\n{:.1f}%".format(x, (x / dp_preclose - 1) * 100)
+    axes[0][0].yaxis.set_major_formatter(mtick.FuncFormatter(funcax0))
 
-    axes[0].minorticks_on()
-    axes[0].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-    axes[0].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
+    axes[0][0].minorticks_on()
+    axes[0][0].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
+    axes[0][0].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    # axes[0].legend(loc='upper left', framealpha=0.1)
     ax0e.legend(loc='upper left', framealpha=0.1)
     ax0b.legend(loc='lower left', framealpha=0.1)
 
-    keylist =  list(etf_dict.keys())
+    keylist = list(etf_dict.keys())
     funcx0 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[0])].values[1] - 1) * 100)
     funcx1 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[1])].values[1] - 1) * 100)
     funcx2 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[2])].values[1] - 1) * 100)
     funcx3 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[3])].values[1] - 1) * 100)
 
-    for i, k in enumerate(etf_dict.keys()):
 
-        x = axes[i + 1]
+    axes[0][1].plot(df_plot.index, df_plot['zdjs'], label='上涨家数', linewidth=1, color='red')
+    axes[0][1].hlines(df_plot['zdjs'].min(), xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.0, zorder=-25)
+    axes[0][1].minorticks_on()
+    axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
+    axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
+    axes[0][1].legend(loc='upper right', framealpha=0.1)
+    axes[0][1].text(0.5, 1.02, f'上涨家数:{df_plot["zdjs"].values[-1]:.0f}  {timetitle}',
+                 horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
+                 color='black')
+
+    # 第二行：两个子图 (1, 0) 和 (1, 1)
+    for i, k in enumerate(etf_dict.keys()):
+        if i == 0:
+            x = axes[1][0]
+        elif i == 1:
+            x = axes[1][1]
+        else:
+            continue
+
         lastclose = df_plot[('preclose', k)].values[1]
-        pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
+        pct = df_plot[('close', k)].dropna().values[-1] / lastclose * 100 - 100
 
         x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-        # x.scatter(df_plot.index, df_plot[('bosssigup', k)], s=25, c='r', label='资金up', marker='o', alpha=0.8,
-        #           zorder=-30)
-        # x.scatter(df_plot.index, df_plot[('bosssigdw', k)], s=25, c='g', label='资金dw', marker='o', alpha=0.8,
-        #           zorder=-30)
-
         x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
-        # x.plot(df_plot.index, df_plot[('cm5', k)], label='ma5', linewidth=0.7, linestyle='-', color='red', alpha=1.)
         x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
-        # x.vlines(openbar, ymin=df_plot[('close', k)].min(), ymax=df_pivot[('close', k)].max(), color='blue', linestyles='--',alpha=1)
         x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
+        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='.', s=36, c='red', alpha=0.4)
+        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='.', s=36, c='green', alpha=0.7)
 
-        # funcx = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', k)].values[1] - 1) * 100)
-        if i==0:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx0))
-        elif i==1:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx1))
-        elif i==2:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2))
-        else:
-            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx3))
-
+        x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx0 if i == 0 else funcx1))
 
         x3 = x.twinx()
         x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
         x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
-        x3.scatter(df_plot.index, df_plot[('up',k)], marker='s', s=9, c='red', alpha=0.3)
-        x3.scatter(df_plot.index, df_plot[('dw',k)], marker='s', s=9, c='green', alpha=0.3)
-        x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6,
-                  zorder=-25)
+        x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
+        x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
+        x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, zorder=-25)
         x3.set_ylim(-10, 10)
         x3.set_yticks([])
 
         x4 = x.twinx()
         x4.plot(df_plot.index, df_plot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
-        # x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.6, linestyle='-.', color='green')
+        x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.9, linestyle='--', color='green')
         x4.set_yticks([])
 
         x5 = x.twinx()
@@ -1281,10 +1115,7 @@ def plot_fullday(df):
         x6 = x.twinx()
         x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
         x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
-        # x6.hlines(y=0, xmin=df_plot.index.min(), xmax=maxx, colors='blue', linestyles='--',  lw=2, alpha=0.5,zorder=-20)
-        # x6.set_yticks([])
 
-        # if int(seq)>210:
         x.legend(loc='upper left', framealpha=0.1)
         x3.legend(loc='lower left', framealpha=0.1)
 
@@ -1293,20 +1124,76 @@ def plot_fullday(df):
         x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
         if k in png_dict.keys():
-            x.text(0.25, 0.9, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
+            x.text(0.5, 0.88, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                    fontweight='bold', color='black')
-        x.text(0.7, 1.02, f'{k} 涨跌:{pct:.2f}%',
-                 horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        x.text(0.5, 1.03, f'{k} 涨跌:{pct:.2f}%',
+               horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+
+    # 第三行：两个子图 (2, 0) 和 (2, 1)
+    for i, k in enumerate(etf_dict.keys()):
+        if i == 2:
+            x = axes[2][0]
+        elif i == 3:
+            x = axes[2][1]
+        else:
+            continue
+
+        lastclose = df_plot[('preclose', k)].values[1]
+        pct = df_plot[('close', k)].dropna().values[-1] / lastclose * 100 - 100
+
+        x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
+        x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
+        x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red', alpha=1.)
+        x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
+        x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='.', s=36, c='red', alpha=0.4)
+        x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='.', s=36, c='green', alpha=0.7)
+
+        x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2 if i == 2 else funcx3))
+
+        x3 = x.twinx()
+        x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+        x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
+        x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
+        x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, zorder=-25)
+        x3.set_ylim(-10, 10)
+        x3.set_yticks([])
+
+        x4 = x.twinx()
+        x4.plot(df_plot.index, df_plot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
+        x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.9, linestyle='--', color='green')
+        x4.set_yticks([])
+
+        x5 = x.twinx()
+        x5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+        x5.set_yticks([])
+
+        x6 = x.twinx()
+        x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
+        x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+
+        x.legend(loc='upper left', framealpha=0.1)
+        x3.legend(loc='lower left', framealpha=0.1)
+
+        x.minorticks_on()
+        x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
+        x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
+
+        if k in png_dict.keys():
+            x.text(0.5, 0.88, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
+                   fontweight='bold', color='black')
+        x.text(0.5, 1.03, f'{k} 涨跌:{pct:.2f}%',
+               horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
     plt.tight_layout()
-    plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_2H.png')
-    # plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
-
+    plt.savefig(f'output\\持续监控全景_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}.png')
     fig.clf()
     plt.close(fig)
 
-def plotAll():
-    global dp_boss, dp_amount, dp_amtcum,dp_bosspct,dp_preclose,timetitle,seq
+def plotAll(tdxdata):
+    global dp_boss, dp_amount, dp_amtcum,dp_bosspct,dp_preclose,timetitle
 
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
@@ -1316,8 +1203,10 @@ def plotAll():
     # df_etf1min.set_index('datetime', inplace=True)
 
     df_all = pd.merge(df_dapan, df_etf1min, on='datetime', how='left')
+    df_zdjs = tdxdata.get_kline_data('880005', backset=backset, klines=300, period=8)
+    df_zdjs.rename(columns={'close': 'zdjs'}, inplace=True)
+    df_all = pd.merge(df_all, df_zdjs[['datetime', 'zdjs']], on='datetime', how='left')
 
-    #for n in range(239,240,1):
     if True:
         # df_temp = df_all[:100+1]
         df_temp = df_all
@@ -1358,7 +1247,19 @@ def plotAll():
             df_temp[f'bosspct_{k}'] = df_temp[('boss', k)]/df_temp[f'amtcum_{k}']*100000000*10
             df_temp[('bossm10',k)] = df_temp[('boss', k)].rolling(10).mean()
 
-        seq = str(len(df_temp)).zfill(3)
+            pre_ccb = df_temp[('pre_ccb',k)].values[-1]
+            ccb_open = df_temp[('ccb_open',k)].values[-1]
+            # df_temp[('ccb_pct',k)] = df_temp[('ccb',k)].apply(lambda x: x / pre_ccb * 1 - 1)
+            # df_temp[('ccb_open2pct',k)] = df_temp[('ccb',k)].apply(lambda x: x / ccb_open * 1 - 1)
+            # df_temp[('ccb_above_open',k)] = df_temp[('ccb',k)].apply(lambda x: 1 if x > ccb_open else 0)
+            df_temp.loc[(df_temp[('cm20up',k)] == 1) & (df_temp[('ccbm20up',k)] == 0) & (df_temp[('ccb_above_open',k)] == 0) & (
+                        (df_temp[('ccb_pct',k)] < -0.03) | (df_temp[('ccb_open2pct',k)] < -0.03)), f'c_enterlong_{k}'] = df_temp[('close',k)]
+
+            df_temp.loc[(df_temp[('cm20up',k)] == 0) & (df_temp[('ccbm20up',k)] == 1) & (df_temp[('ccb_above_open',k)] == 1) & (
+                        (df_temp[('ccb_pct',k)] > 0.03) | (df_temp[('ccb_open2pct',k)] > 0.03)), f'c_entershort_{k}'] = df_temp[('close',k)]
+
+
+
         ktime = df_temp['datetime'].values[-1][2:].replace('-','').replace(' ','_')
         stamp = datetime.datetime.now().strftime('%H:%M:%S')
         timetitle = f'{ktime}--时间戳 {stamp}'
@@ -1376,30 +1277,30 @@ def plotAll():
         df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
         df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
 
-        boss = df_temp['boss'].values[-1]
-        bossr1 = df_temp['boss'].values[-2]
-        bossm10 = df_temp['bossm10'].values[-1]
-        bossm10r1 = df_temp['bossm10'].values[-2]
+        # boss = df_temp['boss'].values[-1]
+        # bossr1 = df_temp['boss'].values[-2]
+        # bossm10 = df_temp['bossm10'].values[-1]
+        # bossm10r1 = df_temp['bossm10'].values[-2]
 
-        if boss>bossm10 and bossr1<bossm10r1:
-            playsound('utils\\morning.mp3')
-            print('主力资金上穿均线')
-            if len(pushurl)>10:
-                msgURL = pushurl + '主力资金上穿均线'
-                requests.get(msgURL)
-        elif boss<bossm10 and bossr1>bossm10r1:
-            playsound('utils\\swoosh.mp3')
-            print('主力资金下穿均线')
-            if len(pushurl) > 10:
-                msgURL = pushurl + '主力资金下穿均线'
-                requests.get(msgURL)
-        else:
-            pass
+        # if boss>bossm10 and bossr1<bossm10r1:
+        #     playsound('utils\\morning.mp3')
+        #     print('主力资金上穿均线')
+        #     if len(pushurl)>10:
+        #         msgURL = pushurl + '主力资金上穿均线'
+        #         requests.get(msgURL)
+        # elif boss<bossm10 and bossr1>bossm10r1:
+        #     playsound('utils\\swoosh.mp3')
+        #     print('主力资金下穿均线')
+        #     if len(pushurl) > 10:
+        #         msgURL = pushurl + '主力资金下穿均线'
+        #         requests.get(msgURL)
+        # else:
+        #     pass
 
         if len(df_temp) <= 120:
             df_temp2 = pd.concat([pd.DataFrame([[]])*1,df_temp])
             df_plot = pd.concat([df_temp2, pd.DataFrame([[]] * (121 - len(df_temp2)))])
-            plot_morning(df_plot)
+            plot_fullday(df_plot)
         elif len(df_temp)>120 and len(df_temp)<=240:
             df_temp2 = pd.concat([pd.DataFrame([[]])*1, df_temp])
             df_plot = pd.concat([df_temp2, pd.DataFrame([[]] * (241 - len(df_temp2)))])
@@ -1409,9 +1310,10 @@ def plotAll():
 
     return df_temp
 
+
 def plot_options():
 
-    global df_optlist, new_optlist, timetitle,seq
+    global df_optlist, new_optlist, timetitle
 
     df_opt = getOptiondata()
     # df_opt = df_opt#[:100]
@@ -1434,181 +1336,102 @@ def plot_options():
 
     timestamp = df_opt['datetime'].values[-1].replace('-','')
 
-    if len(df_opt)<=120:
+    data_len = len(df_opt)
 
-        if int(seq) < 30:
-            maxx = 60
-        elif int(seq) < 60:
-            maxx = 90
-        else:
-            maxx = 120
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-        for ax in axes[:, :1]:
-            ax[0].set_xticks(np.arange(0, 121, 30))
-            ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
-        for ax in axes[:, 1:]:
-            ax[0].set_xticks(np.arange(0, 121, 30))
-            ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
-
-        for i, k in enumerate(etf_dict.keys()):
-            if i == 0:
-                x = axes[0][0]
-            elif i == 1:
-                x = axes[0][1]
-            elif i == 2:
-                x = axes[1][0]
-            else:
-                x = axes[1][1]
-
-            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
-            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
-            ylim_min = df_opt[('long', k)].dropna().min() * 0.95
-            ylim_max = df_opt[('long', k)].dropna().max() * 1.05
-            # df_opt[('bossm10', k)] = df_opt[('boss', k)].rolling(10).mean()
-
-            x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
-            x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
-            x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
-            x.set_ylim(ylim_min, ylim_max)
-
-            x1 = x.twinx()
-            x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
-            x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
-            x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
-
-            x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
-
-            x2= x.twinx()
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
-            x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
-            x2.set_yticks([])
-
-            if k in png_dict.keys():
-                x.text(0.5, 0.95, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
-                       fontweight='bold', color='black')
-            x.text(0.6, 0.90, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center', transform=x.transAxes, fontsize=12,
-                   fontweight='bold', color='black')
-
-            if i == 0:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx00))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx01))
-            elif i == 1:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx10))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx11))
-            elif i == 2:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx20))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx21))
-            else:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx30))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx31))
-
-            x.minorticks_on()
-            x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-            x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-
-            x.legend(loc='center left', fontsize=10, frameon=True, framealpha=0.1)
-            x1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
-
-        plt.tight_layout()
-        plt.suptitle(timetitle,x=0.5, y=1.0)
-        plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_1H.png')
-        # plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
-
-        fig.clf()
-        plt.close(fig)
-
+    if data_len < 30:
+        maxx = 60
+    elif data_len < 60:
+        maxx = 90
+    elif data_len < 120:
+        maxx = 120
+    elif data_len < 180:
+        maxx = 180
     else:
+        maxx = 240
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    for ax in axes[:, :1]:
+        ax[0].set_xticks(np.arange(0, 241, 30))
+        # ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130'))
+        ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
+    for ax in axes[:, 1:]:
+        ax[0].set_xticks(np.arange(0, 241, 30))
+        ax[0].set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
 
-        if int(seq) < 150:
-            maxx = 150
-        elif int(seq) < 180:
-            maxx = 180
+    for i, k in enumerate(etf_dict.keys()):
+        if i == 0:
+            x = axes[0][0]
+        elif i == 1:
+            x = axes[0][1]
+        elif i == 2:
+            x = axes[1][0]
         else:
-            maxx = 240
-        fig, axes = plt.subplots(4, 1, figsize=(14, 10))
-        for ax in axes:
-            ax.set_xticks(np.arange(0, 241, 30))
-            ax.set_xticklabels(('930', '1000', '1030', '1100', '1130', '1330', '1400', '1430', '1500'))
+            x = axes[1][1]
 
-        for i, k in enumerate(etf_dict.keys()):
-            x = axes[i]
+        longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].values[0]*100 - 100
+        shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].values[0]*100 - 100
+        ylim_min = df_opt[('long', k)].dropna().min() * 0.95
+        ylim_max = df_opt[('long', k)].dropna().max() * 1.05
+        # df_opt[('bossm10', k)] = df_opt[('boss', k)].rolling(10).mean()
 
-            longpct = df_opt[('long', k)].values[-1]/df_opt[('long', k)].dropna().iloc[0]*100 - 100
-            shortpct = df_opt[('short', k)].values[-1]/df_opt[('short', k)].dropna().iloc[0]*100 - 100
-            ylim_min = df_opt[('long', k)].dropna().min() * 0.95
-            ylim_max = df_opt[('long', k)].dropna().max() * 1.05
-            # df_opt[('bossm10', k)] = df_opt[('boss', k)].rolling(10).mean()
+        x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
+        x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
+        x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+        x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+        x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
+        x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+        x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
+        x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
+        x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
+        x.set_ylim(ylim_min, ylim_max)
 
-            x.plot(df_opt.index, df_opt[('long', k)], linewidth=0.6, label='认购(左)', linestyle='-', color='red')
-            x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
-            x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='red', lw=1, alpha=0.5,zorder=-20)
+        x1 = x.twinx()
+        x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
+        x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
+        x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
+        x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+        x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
 
-            x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.7, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
-            x.set_ylim(ylim_min, ylim_max)
+        x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+        x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
-            x1 = x.twinx()
-            x1.plot(df_opt.index, df_opt[('short', k)], linewidth=0.6, label='认沽(右)',linestyle='-', color='green')
-            x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
-            x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx, colors='green', lw=1, alpha=0.5,zorder=-20)
-            x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.7, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.7, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.75, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.7, zorder=-10)
+        x2= x.twinx()
+        x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
+        x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+        x2.set_yticks([])
 
-            x2= x.twinx()
-            x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
-            x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
-            x2.set_yticks([])
-
-            if k in png_dict.keys():
-                x.text(0.35, 0.92, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
-                       fontweight='bold', color='black')
-            x.text(0.8, 0.90, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center', transform=x.transAxes, fontsize=12,
+        if k in png_dict.keys():
+            x.text(0.5, 0.95, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                    fontweight='bold', color='black')
+        x.text(0.6, 0.90, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center', transform=x.transAxes, fontsize=12,
+               fontweight='bold', color='black')
 
-            if i == 0:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx00))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx01))
-            elif i == 1:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx10))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx11))
-            elif i == 2:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx20))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx21))
-            else:
-                x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx30))
-                x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx31))
+        if i == 0:
+            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx00))
+            x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx01))
+        elif i == 1:
+            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx10))
+            x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx11))
+        elif i == 2:
+            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx20))
+            x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx21))
+        else:
+            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx30))
+            x1.yaxis.set_major_formatter(mtick.FuncFormatter(funcx31))
 
-            x.minorticks_on()
-            x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-            x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
+        x.minorticks_on()
+        x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
+        x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-            x.legend(loc='center left', fontsize=10, frameon=True, framealpha=0.1)
-            x1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
+        x.legend(loc='center left', fontsize=10, frameon=True, framealpha=0.1)
+        x1.legend(loc='center right', fontsize=10, frameon=True, framealpha=0.1)
 
-        plt.tight_layout()
-        plt.suptitle(timetitle,x=0.7, y=0.99)
-        plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_2H.png')
-        # plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}_{seq}.png')
-        fig.clf()
-        plt.close(fig)
+    plt.tight_layout()
+    plt.suptitle(timetitle,x=0.5, y=1.0)
+    plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.datetime.now().strftime("%Y%m%d")}.png')
 
+    fig.clf()
+    plt.close(fig)
     return
-
 
 
 def main():
@@ -1641,12 +1464,12 @@ def main():
                         print(f'请检查{k}的期权清单是否完整')
                         break
 
-                df_full =plotAll()
+                df_full =plotAll(tdxdata)
                 if plotopt == 'Y' and opt_fine==True:
                     plot_options()
                 time.sleep(sleepsec)
 
-        df_full =plotAll()
+        df_full =plotAll(tdxdata)
         if plotopt == 'Y' and opt_fine==True:
             plot_options()
 
@@ -1722,7 +1545,7 @@ if __name__ == '__main__':
     factor = calAmtFactor(5)
     factor = factor+[1.00]
 
-    # df_full = plotAll()
+    # df_full = plotAll(tdxdata)
     # if plotopt == 'Y' and opt_fine==True:
     #     plot_options()
 
