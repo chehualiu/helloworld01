@@ -529,77 +529,78 @@ def getETFdata():
 
     df_all = pd.DataFrame()
 
-    for k,v in etf_dict2.items():
+    # for k,v in etf_dict2.items():
+    k = list(etf_dict2.keys())[0]
+    v = list(etf_dict2.values())[0]
+    df_single = getSingleCCBData(tdxdata,k, backset=backset, klines=klines, period=period)
+    df_BKzjlx = getBKZjlxRT(etfbk_dict[k])
+    df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
 
-        df_single = getSingleCCBData(tdxdata,k, backset=backset, klines=klines, period=period)
-        df_BKzjlx = getBKZjlxRT(etfbk_dict[k])
-        df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
+    tmp = df_single[df_single['datetime'].str.contains('15:00')]
+    if '15:00' in df_single['datetime'].values[-1]:
+        preidx = tmp.index[-2]
+    else:
+        preidx = tmp.index[-1]
+    preclose =   df_single.loc[preidx,'close']
+    df_single['preclose'] = preclose
 
-        tmp = df_single[df_single['datetime'].str.contains('15:00')]
-        if '15:00' in df_single['datetime'].values[-1]:
-            preidx = tmp.index[-2]
-        else:
-            preidx = tmp.index[-1]
-        preclose =   df_single.loc[preidx,'close']
-        df_single['preclose'] = preclose
-
-        k_h = max(preclose, df_single['high'][preidx+1:].max())
-        k_l = min(preclose, df_single['low'][preidx+1:].min())
-        k_hh = k_l + (k_h - k_l) * 7.5 / 8
-        k_ll = k_l + (k_h - k_l) * 0.5 / 8
-        df_single['crossdw'] = np.nan
-        df_single['crossup'] = np.nan
-        df_single.loc[(df_single['close'] < k_hh) & (df_single['close'].shift(1) >= k_hh), 'crossdw'] = -0.5
-        df_single.loc[(df_single['close'] > k_ll) & (df_single['close'].shift(1) <= k_ll), 'crossup'] = -0.5
-
-
-        df_single['cp30'] = (df_single['close'] - df_single['close'].rolling(30).min()) / (
-                    df_single['close'].rolling(30).max() - df_single['close'].rolling(30).min())
-        df_single['cp60'] = (df_single['close'] - df_single['close'].rolling(60).min()) / (
-                    df_single['close'].rolling(60).max() - df_single['close'].rolling(60).min())
-        df_single['cm10'] = df_single['close'].rolling(10).mean()
-        df_single['cabovem10'] = df_single['close'] > df_single['cm10']
-
-        df_single.loc[(df_single['cp30'] < 0.3) & (df_single['cp60'] < 0.3) & (df_single['cabovem10'] == True) & \
-                  (df_single['close'] > df_single['close'].shift(1)), 'pivotup'] = 0.5
-        df_single.loc[(df_single['cp30'] > 0.7) & (df_single['cp60'] > 0.7) & (df_single['cabovem10'] == False) & \
-                  (df_single['close'] < df_single['close'].shift(1)), 'pivotdw'] = 0.5
-
-        df_single['cm5'] = df_single['close'].rolling(5).mean()
-        df_single['cm10'] = df_single['close'].rolling(10).mean()
-        df_single['cm20'] = df_single['close'].rolling(20).mean()
-
-        df_single['chhv60'] = df_single['high'].rolling(60).max()
-        df_single['cllv60'] = df_single['low'].rolling(60).min()
-        df_single['ccp60'] = df_single.apply(lambda x: (x['close']-x['cllv60'])/(x['chhv60']-x['cllv60']), axis=1)
-
-        df_single['bossm10'] = df_single['boss'].rolling(10).mean()
-        df_single['ccbm5'] = df_single['ccb'].rolling(5).mean()
-        # df_single['ccbm10'] = df_single['ccb'].rolling(10).mean()
-        df_single['ccbm20'] = df_single['ccb'].rolling(20).mean()
-
-        df_single.loc[(df_single['close']>df_single['close'].shift(1)) & (df_single['boss']>df_single['boss'].shift(1)), 'upp'] = df_single['boss']
-        df_single.loc[(df_single['close']<df_single['close'].shift(1)) & (df_single['boss']<df_single['boss'].shift(1)), 'dww'] = df_single['boss']
-        df_single.loc[(df_single['close']>df_single['cm10']) & (df_single['upp'].notnull()), 'bossup'] = 1
-        df_single.loc[(df_single['close']<df_single['cm10']) & (df_single['dww'].notnull()), 'bossdw'] = 1
-        df_single['bossflag'] = df_single.apply(lambda x: 1 if x['bossup'] == 1 else (-1 if x['bossdw'] == 1 else np.nan), axis=1)
-        df_single['bossflag'] = df_single['bossflag'].ffill()
-        df_single.loc[(df_single['bossflag']==1) & (df_single['bossflag'].shift(1)==-1), 'bosssigup'] = df_single['close']
-        df_single.loc[(df_single['bossflag']==-1) & (df_single['bossflag'].shift(1)==1), 'bosssigdw'] = df_single['close']
-
-        df_single['sig'] = df_single[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
-        df_single['sig'] = df_single.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
-        df_single['sig'] = df_single['sig'].ffill()
-        df_single['up'] = df_single.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
-        df_single['dw'] = df_single.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+    k_h = max(preclose, df_single['high'][preidx+1:].max())
+    k_l = min(preclose, df_single['low'][preidx+1:].min())
+    k_hh = k_l + (k_h - k_l) * 7.5 / 8
+    k_ll = k_l + (k_h - k_l) * 0.5 / 8
+    df_single['crossdw'] = np.nan
+    df_single['crossup'] = np.nan
+    df_single.loc[(df_single['close'] < k_hh) & (df_single['close'].shift(1) >= k_hh), 'crossdw'] = -0.5
+    df_single.loc[(df_single['close'] > k_ll) & (df_single['close'].shift(1) <= k_ll), 'crossup'] = -0.5
 
 
-        df_single['etf'] = k
-        df_all = pd.concat([df_all, df_single])
-    df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'close', 'high', 'low','open','preclose','volume',
-               'cm5','cm20','ccp60','pivotup','pivotdw','crossup','crossdw','up','dw','bosssigup','bosssigdw','boss','amount'], dropna=False)
+    df_single['cp30'] = (df_single['close'] - df_single['close'].rolling(30).min()) / (
+                df_single['close'].rolling(30).max() - df_single['close'].rolling(30).min())
+    df_single['cp60'] = (df_single['close'] - df_single['close'].rolling(60).min()) / (
+                df_single['close'].rolling(60).max() - df_single['close'].rolling(60).min())
+    df_single['cm10'] = df_single['close'].rolling(10).mean()
+    df_single['cabovem10'] = df_single['close'] > df_single['cm10']
 
-    return df_pivot
+    df_single.loc[(df_single['cp30'] < 0.3) & (df_single['cp60'] < 0.3) & (df_single['cabovem10'] == True) & \
+              (df_single['close'] > df_single['close'].shift(1)), 'pivotup'] = 0.5
+    df_single.loc[(df_single['cp30'] > 0.7) & (df_single['cp60'] > 0.7) & (df_single['cabovem10'] == False) & \
+              (df_single['close'] < df_single['close'].shift(1)), 'pivotdw'] = 0.5
+
+    df_single['cm5'] = df_single['close'].rolling(5).mean()
+    df_single['cm10'] = df_single['close'].rolling(10).mean()
+    df_single['cm20'] = df_single['close'].rolling(20).mean()
+
+    df_single['chhv60'] = df_single['high'].rolling(60).max()
+    df_single['cllv60'] = df_single['low'].rolling(60).min()
+    df_single['ccp60'] = df_single.apply(lambda x: (x['close']-x['cllv60'])/(x['chhv60']-x['cllv60']), axis=1)
+
+    df_single['bossm10'] = df_single['boss'].rolling(10).mean()
+    df_single['ccbm5'] = df_single['ccb'].rolling(5).mean()
+    # df_single['ccbm10'] = df_single['ccb'].rolling(10).mean()
+    df_single['ccbm20'] = df_single['ccb'].rolling(20).mean()
+
+    df_single.loc[(df_single['close']>df_single['close'].shift(1)) & (df_single['boss']>df_single['boss'].shift(1)), 'upp'] = df_single['boss']
+    df_single.loc[(df_single['close']<df_single['close'].shift(1)) & (df_single['boss']<df_single['boss'].shift(1)), 'dww'] = df_single['boss']
+    df_single.loc[(df_single['close']>df_single['cm10']) & (df_single['upp'].notnull()), 'bossup'] = 1
+    df_single.loc[(df_single['close']<df_single['cm10']) & (df_single['dww'].notnull()), 'bossdw'] = 1
+    df_single['bossflag'] = df_single.apply(lambda x: 1 if x['bossup'] == 1 else (-1 if x['bossdw'] == 1 else np.nan), axis=1)
+    df_single['bossflag'] = df_single['bossflag'].ffill()
+    df_single.loc[(df_single['bossflag']==1) & (df_single['bossflag'].shift(1)==-1), 'bosssigup'] = df_single['close']
+    df_single.loc[(df_single['bossflag']==-1) & (df_single['bossflag'].shift(1)==1), 'bosssigdw'] = df_single['close']
+
+    df_single['sig'] = df_single[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
+    df_single['sig'] = df_single.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
+    df_single['sig'] = df_single['sig'].ffill()
+    df_single['up'] = df_single.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
+    df_single['dw'] = df_single.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+
+
+        # df_single['etf'] = k
+        # df_all = pd.concat([df_all, df_single])
+    # df_pivot = df_all.pivot_table(index='datetime',columns='etf',values=['ccb', 'close', 'high', 'low','open','preclose','volume',
+    #            'cm5','cm20','ccp60','pivotup','pivotdw','crossup','crossdw','up','dw','bosssigup','bosssigdw','boss','amount'], dropna=False)
+
+    return df_single
 
 
 
@@ -627,93 +628,76 @@ def processAll():
 
     df_dapan,dp_preclose = getDPdata()
     df_etf1min = getETFdata()
-    df_etf1min['ccbm20'] = df_etf1min[('ccb','中证500')].rolling(20).mean()
+    df_etf1min['ccbm20'] = df_etf1min['ccb'].rolling(20).mean()
     df_etf1min.reset_index(drop=False, inplace=True)
     df_etf1min['datetime'] = df_etf1min['datetime'].apply(lambda x: x.replace('13:00','11:30'))
+    df_dapan.rename(columns={'close':'dp_close','boss':'dp_boss','amount':'dp_amount'}, inplace=True)
+    # df_temp = pd.merge(df_dapan[['datetime', 'dp_amount', 'dp_close',
+    #    'allamt',  'amttrend', 'dp_boss',]], df_etf1min, on='datetime', how='left')
 
-    df_temp = pd.merge(df_dapan, df_etf1min, on='datetime', how='left')
-
-    dp_h = max(dp_preclose, df_temp.close.max())
-    dp_l = min(dp_preclose, df_temp.close.min())
-    dp_hh = dp_l + (dp_h - dp_l) * 7.5 / 8
-    dp_ll = dp_l + (dp_h - dp_l) * 0.5 / 8
-    df_temp.loc[(df_temp.close < dp_hh) & (df_temp.close.shift(1) > dp_hh), 'crossdw'] = -0.5
-    df_temp.loc[(df_temp.close > dp_ll) & (df_temp.close.shift(1) < dp_ll), 'crossup'] = -0.5
-
-    df_temp['cp30'] = (df_temp['close'] - df_temp['close'].rolling(30).min()) / (
-                df_temp['close'].rolling(30).max() - df_temp['close'].rolling(30).min())
-    df_temp['cp60'] = (df_temp['close'] - df_temp['close'].rolling(60).min()) / (
-                df_temp['close'].rolling(60,min_periods=31).max() - df_temp['close'].rolling(60,min_periods=31).min())
-    df_temp['cm10'] = df_temp['close'].rolling(10).mean()
-    df_temp['cm20'] = df_temp['close'].rolling(20).mean()
-    df_temp['cabovem10'] = df_temp['close'] > df_temp['cm10']
-
-    df_temp.loc[(df_temp['cp30'] < 0.3) & (df_temp['cp60'] < 0.3) & (df_temp['cabovem10'] == True) & \
-              (df_temp['close'] > df_temp['close'].shift(1)), 'pivotup'] = 0.5
-    df_temp.loc[(df_temp['cp30'] > 0.7) & (df_temp['cp60'] > 0.7) & (df_temp['cabovem10'] == False) & \
-              (df_temp['close'] < df_temp['close'].shift(1)), 'pivotdw'] = 0.5
 
     k = '中证500'; v='510500'
-    if ('amount',k) in df_temp.columns:
-        tmp = df_temp[[('close', k), ('volume', k),('amount',k)]]
-        tmp['amtcum'] = tmp[('amount',k)].cumsum()
-    else:
-        tmp=df_temp[[('close',k),('volume',k)]]
-        tmp['amt'] = tmp[('close',k)]*tmp[('volume',k)]
-        tmp['amtcum'] = tmp['amt'].cumsum()
-    tmp['volcum'] = tmp[('volume', k)].cumsum()
-    tmp[f'avg_{k}'] = tmp['amtcum']/tmp['volcum']
-    df_temp[f'avg_{k}'] = tmp[f'avg_{k}']
-    df_temp[f'amtcum_{k}'] = tmp['amtcum']
-    df_temp[f'bosspct_{k}'] = df_temp[('boss', k)]/df_temp[f'amtcum_{k}']*100000000*10
-    df_temp[('bossm10',k)] = df_temp[('boss', k)].rolling(10).mean()
+    # if 'amount' in df_temp.columns:
+    #     tmp = df_temp[['close', 'volume','amount']]
+    #     tmp['amtcum'] = tmp['amount'].cumsum()
+    # else:
+    #     tmp=df_temp[['close','volume']]
+    #     tmp['amt'] = tmp['close']*tmp['volume']
+    #     tmp['amtcum'] = tmp['amt'].cumsum()
+    # tmp['volcum'] = tmp['volume'].cumsum()
+    # tmp[f'avg'] = tmp['amtcum']/tmp['volcum']
+    # df_temp[f'avg'] = tmp[f'avg']
+    # df_temp[f'amtcum'] = tmp['amtcum']
+    # df_temp[f'bosspct'] = df_temp['boss']/df_temp[f'amtcum']*100000000*10
+    # df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
 
     # seq = str(len(df_temp)).zfill(3)
-    ktime = df_temp['datetime'].values[-1][2:].replace('-','').replace(' ','_')
+    ktime = df_dapan['datetime'].values[-1][2:].replace('-','').replace(' ','_')
     stamp = datetime.datetime.now().strftime('%H:%M:%S')
     timetitle = f'{ktime}--时间戳 {stamp}'
 
-    dp_boss = df_temp['boss'].ffill().values[-1]/100000000
-    dp_amount = df_temp['amttrend'].ffill().values[-1]/100000000
-    df_temp['dpamtcum'] = df_temp['allamt'].cumsum()
-    df_temp['dpbosspct'] = df_temp['boss']/df_temp['dpamtcum']*100
-    dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
-    dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
-    df_temp['sig'] = df_temp[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
-    df_temp['sig'] = df_temp.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
-    df_temp['sig'] = df_temp['sig'].ffill()
-    df_temp['up'] = df_temp.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
-    df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
-    df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
+    dp_boss = df_dapan['dp_boss'].ffill().values[-1]/100000000
+    dp_amount = df_dapan['amttrend'].ffill().values[-1]/100000000
+    df_dapan['dpamtcum'] = df_dapan['allamt'].cumsum()
+    # df_dapan['dpbosspct'] = df_dapan['dp_boss']/df_dapan['dpamtcum']*100
+    dp_amtcum = df_dapan['dpamtcum'].ffill().values[-1] / 100000000
+    # dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
+    # df_temp['sig'] = df_temp[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
+    # df_temp['sig'] = df_temp.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
+    # df_temp['sig'] = df_temp['sig'].ffill()
+    # df_temp['up'] = df_temp.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
+    # df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+    df_dapan['dp_bossm10'] = df_dapan['dp_boss'].rolling(10).mean()
 
     df_opt,longtext,shorttext,new_optlist = getOptiondata()
-    df_plot = pd.merge(df_opt, df_temp, on='datetime', how='left')
+    df_plot = pd.merge(df_opt, df_etf1min, on='datetime', how='left')
+    df_plot = pd.merge(df_plot, df_dapan[['datetime', 'dp_amount', 'dp_close',
+          'allamt', 'dpamtcum', 'amttrend', 'dp_boss','dp_bossm10']], on='datetime', how='left')
 
-    boss = df_plot[('boss', k)].values[-1]
-    bossr1 = df_plot[('boss', k)].values[-2]
-    bossm10 = df_plot[('bossm10', k)].values[-1]
-    bossm10r1 = df_plot[('bossm10', k)].values[-2]
-
-    if boss>bossm10 and bossr1<bossm10r1:
-        playsound('utils\\morning.mp3')
-        print('主力资金上穿均线')
-        if pushflag=='Y':
-            try:
-                msgURL = pushurl + '主力资金上穿均线'
-                requests.get(msgURL,timeout=1)
-            except:
-                pass
-    elif boss<bossm10 and bossr1>bossm10r1:
-        playsound('utils\\swoosh.mp3')
-        print('主力资金下穿均线')
-        if pushflag=='Y':
-            try:
-                msgURL = pushurl + '主力资金下穿均线'
-                requests.get(msgURL,timeout=1)
-            except:
-                pass
-    else:
-        pass
+    # boss = df_plot['dp_boss'].values[-1]
+    # bossr1 = df_plot['dp_boss'].values[-2]
+    # bossm10 = df_plot['dp_bossm10'].values[-1]
+    # bossm10r1 = df_plot['dp_bossm10'].values[-2]
+    # if boss>bossm10 and bossr1<bossm10r1:
+    #     playsound('utils\\morning.mp3')
+    #     print('主力资金上穿均线')
+    #     if pushflag=='Y':
+    #         try:
+    #             msgURL = pushurl + '主力资金上穿均线'
+    #             requests.get(msgURL,timeout=1)
+    #         except:
+    #             pass
+    # elif boss<bossm10 and bossr1>bossm10r1:
+    #     playsound('utils\\swoosh.mp3')
+    #     print('主力资金下穿均线')
+    #     if pushflag=='Y':
+    #         try:
+    #             msgURL = pushurl + '主力资金下穿均线'
+    #             requests.get(msgURL,timeout=1)
+    #         except:
+    #             pass
+    # else:
+    #     pass
 
 
     if 'index' in df_plot.columns:
@@ -721,21 +705,21 @@ def processAll():
     df_plot.reset_index(drop=True, inplace=True)
     df_plot.reset_index(drop=False, inplace=True)
 
-    lastclose = df_plot[('preclose', k)].values[1]
-    pct = df_plot[('close',k)].dropna().values[-1] / lastclose*100 - 100
-    ccb_pct = df_plot[('ccb', k)].dropna().values[-1] / pre_ccb*100 - 100
+    lastclose = df_plot['preclose'].values[1]
+    pct = df_plot['close'].dropna().values[-1] / lastclose*100 - 100
+    ccb_pct = df_plot['ccb'].dropna().values[-1] / pre_ccb*100 - 100
 
     df_plot['cm20up'] =  (df_plot['cm20']>df_plot['cm20'].shift(1)).map({True:1,False:0})
-    df_plot['ccbm20up'] =  (df_plot[('ccbm20','')]>df_plot[('ccbm20','')].shift(1)).map({True:1,False:0})
-    df_plot['ccb_pct'] =  df_plot[('ccb',k)].apply(lambda x: x/pre_ccb*1-1)
-    ccb_open = df_plot[('ccb',k)].dropna().values[0]
-    df_plot['ccb_open2pct'] =  df_plot[('ccb',k)].apply(lambda x: x/ccb_open*1-1)
-    df_plot['ccb_above_open'] =  df_plot[('ccb',k)].apply(lambda x: 1 if x>ccb_open else 0)
+    df_plot['ccbm20up'] =  (df_plot['ccbm20']>df_plot['ccbm20'].shift(1)).map({True:1,False:0})
+    df_plot['ccb_pct'] =  df_plot['ccb'].apply(lambda x: x/pre_ccb*1-1)
+    ccb_open = df_plot['ccb'].dropna().values[1]
+    df_plot['ccb_open2pct'] =  df_plot['ccb'].apply(lambda x: x/ccb_open*1-1)
+    df_plot['ccb_above_open'] =  df_plot['ccb'].apply(lambda x: 1 if x>ccb_open else 0)
     ccb_open_pct = df_plot['ccb_open2pct'].values[-1]*100
 
-    df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0) & (df_plot['ccb_above_open']==0) & ((df_plot['ccb_pct']<-0.03) | (df_plot['ccb_open2pct']<-0.03)), 'c_enterlong'] = df_plot[('close',k)]
+    df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0) & (df_plot['ccb_above_open']==0) & ((df_plot['ccb_pct']<-0.03) | (df_plot['ccb_open2pct']<-0.03)), 'c_enterlong'] = df_plot['close']
     # df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1), 'c_exitlong'] = df_plot['close']
-    df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1) & (df_plot['ccb_above_open']==1) & ((df_plot['ccb_pct']>0.03) | (df_plot['ccb_open2pct']>0.03)), 'c_entershort'] = df_plot[('close',k)]
+    df_plot.loc[(df_plot['cm20up']==0) & (df_plot['ccbm20up']==1) & (df_plot['ccb_above_open']==1) & ((df_plot['ccb_pct']>0.03) | (df_plot['ccb_open2pct']>0.03)), 'c_entershort'] = df_plot['close']
     # df_plot.loc[(df_plot['cm20up']==1) & (df_plot['ccbm20up']==0), 'c_exitshort'] = df_plot['close']
 
     if len(df_plot) < 60:
@@ -763,14 +747,14 @@ def processAll():
 
 
     axes[0][1].hlines(y=dp_preclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-    axes[0][1].plot(df_plot.index, df_plot['close'], linewidth=1, color='red')
-    axes[0][1].plot(df_plot.index, df_plot['cm20'], linewidth=0.8, color='red', linestyle='--')
-    axes[0][1].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
+    axes[0][1].plot(df_plot.index, df_plot['dp_close'], linewidth=1, color='red')
+    # axes[0][1].plot(df_plot.index, df_plot['dp_cm20'], linewidth=0.8, color='red', linestyle='--')
+    # axes[0][1].plot(df_plot.index, df_plot['avg'], linewidth=1, color='violet')
 
     ax0b = axes[0][1].twinx()
     ax0c = axes[0][1].twinx()
     ax0d = axes[0][1].twinx()
-    ax0e = axes[0][1].twinx()
+    # ax0e = axes[0][1].twinx()
 
     ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
     ax0b.plot(df_plot.index, df_plot.bossm10, color='blue',  linestyle='--', linewidth=0.5,  alpha=1)
@@ -778,17 +762,17 @@ def processAll():
     ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
     ax0c.set_yticks([])
     ax0d.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
+    ax0d.set_yticks([])
+    # ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
+    # ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
+    # ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=25, c='red', alpha=0.7)
+    # ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=25, c='green', alpha=0.8)
+    # ax0e.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
+    # ax0e.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
 
-    ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
-    ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
-    ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=25, c='red', alpha=0.7)
-    ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=25, c='green', alpha=0.8)
-    ax0e.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
-    ax0e.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
-
-    ax0e.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
-    ax0e.set_ylim(-10, 10)
-    ax0e.set_yticks([])
+    # ax0e.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, linestyle='--', zorder=-25)
+    # ax0e.set_ylim(-10, 10)
+    # ax0e.set_yticks([])
     axes[0][1].text(0.5, 1.02, f'大盘资金(蓝线):{dp_boss:.0f}亿 成交量(绿线):{dp_amount:.0f}亿 ',
                  horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
                  color='black')
@@ -797,45 +781,45 @@ def processAll():
     axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
     axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-    ax0e.legend(loc='upper left', framealpha=0.1)
+    # ax0e.legend(loc='upper left', framealpha=0.1)
     ax0b.legend(loc='lower left', framealpha=0.1)
 
     xa = axes[1][1]
 
 
     xa.hlines(y=lastclose, xmin=df_plot.index.min(), label='lastClose', xmax=maxx, colors='aqua', linestyles='-', lw=2)
-    xa.plot(df_plot.index, df_plot[('close', k)], label='etf', linewidth=1, linestyle='-', color='red', alpha=1.)
-    xa.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.8, linestyle='--', color='red', alpha=1.)
+    xa.plot(df_plot.index, df_plot['close'], label='etf', linewidth=1, linestyle='-', color='red', alpha=1.)
+    xa.plot(df_plot.index, df_plot['cm20'], label='ma20', linewidth=0.8, linestyle='--', color='red', alpha=1.)
     # xa.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
     xa.scatter(df_plot.index, df_plot['c_enterlong'], marker='o', s=9, color='red', alpha=1)
     xa.scatter(df_plot.index, df_plot['c_entershort'], marker='o', s=9, color='green', alpha=1)
 
     xa3 = xa.twinx()
-    xa3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
-    xa3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
-    xa3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
-    xa3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
-    xa3.scatter(df_plot.index, df_plot[('up',k)], marker='s', s=9, c='red', alpha=0.3)
-    xa3.scatter(df_plot.index, df_plot[('dw',k)], marker='s', s=9, c='green', alpha=0.3)
+    xa3.scatter(df_plot.index, df_plot['pivotup'], label='转折点', s=25, c='r', marker='^', alpha=0.7, zorder=-10)
+    xa3.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', s=25, c='g', marker='v', alpha=0.7, zorder=-10)
+    xa3.scatter(df_plot.index, df_plot['crossup'], s=16, c='r', marker='D', alpha=0.7, zorder=-10)
+    xa3.scatter(df_plot.index, df_plot['crossdw'], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+    xa3.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
+    xa3.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
     xa3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6,
               zorder=-25)
     xa3.set_ylim(-10, 10)
     xa3.set_yticks([])
 
     xa4 = xa.twinx()
-    xa4.plot(df_plot.index, df_plot[('ccb', k)], label='ccb',linewidth=1, linestyle='-', color='green')
-    xa4.plot(df_plot.index, df_plot[('ccbm20','')], label='ccbm20',linewidth=1, linestyle='--', color='green')
+    xa4.plot(df_plot.index, df_plot['ccb'], label='ccb',linewidth=1, linestyle='-', color='green')
+    xa4.plot(df_plot.index, df_plot['ccbm20'], label='ccbm20',linewidth=1, linestyle='--', color='green')
     xa4.hlines(pre_ccb, xmin=df_plot.index.min(), xmax=maxx, color='green', label='pre_ccb',linewidth=2, alpha=0.5,
               linestyle='-',zorder=-25)
     # xa4.set_yticks([])
 
     xa5 = xa.twinx()
-    xa5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+    xa5.bar(df_plot.index, df_plot['volume'], color='gray', alpha=0.3, zorder=-15)
     xa5.set_yticks([])
 
     xa6 = xa.twinx()
-    xa6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
-    xa6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    xa6.plot(df_plot.index, df_plot['boss'], linewidth=0.8, linestyle='-', color='blue')
+    xa6.plot(df_plot.index, df_plot['bossm10'], color='blue', linestyle='--', linewidth=0.5, alpha=1)
     xa6.set_yticks([])
 
     xa.legend(loc='upper left', framealpha=0.1)
@@ -879,11 +863,11 @@ def processAll():
     xb1.scatter(df_plot.index, df_plot['Short_pivotdw'], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
 
     xb2 = xb.twinx()
-    xb2.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
-    xb2.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+    xb2.plot(df_plot.index, df_plot['boss'], linewidth=0.8, linestyle='-', color='blue')
+    xb2.plot(df_plot.index, df_plot['bossm10'], color='blue', linestyle='--', linewidth=0.5, alpha=1)
     xb2.set_yticks([])
 
-    xb.text(0.25, 0.95, new_optlist, horizontalalignment='center', transform=xb.transAxes, fontsize=12,
+    xb.text(0.35, 0.95, new_optlist, horizontalalignment='center', transform=xb.transAxes, fontsize=12,
                fontweight='bold', color='black')
     xb.text(0.9, 1.02, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center',
            transform=xb.transAxes, fontsize=12,
@@ -955,7 +939,7 @@ def processAll():
     fig.clf()
     plt.close(fig)
 
-    return df_temp
+    return df_plot
 
 def main():
 
