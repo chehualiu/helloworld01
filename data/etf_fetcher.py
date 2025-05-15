@@ -13,6 +13,11 @@ class ETFDataFetcher:
         self.etf_bk_dict = bk_dict
         factor = self.calAmtFactor(5)
         self.factor = factor + [1.00]
+        self.ccb_range = {}
+        for k,v in self.etf_ccb_dict.items():
+            ccb_temp = self.tdx_data.get_kline_data(v, backset=0, klines=200, period=9)
+            self.ccb_range[f'{k}_max'] = ccb_temp['close'].max()
+            self.ccb_range[f'{k}_min'] = ccb_temp['close'].min()
 
     def calAmtFactor(self,n):
         global tdxdata
@@ -83,10 +88,10 @@ class ETFDataFetcher:
         min['boss'] = min['boss'].astype('float') / 100000000
 
         return min
-    def get_Single_CCB_Data(self, tdxData, name, backset=0, klines=500, period=8):
+    def get_Single_CCB_Data(self, name, backset=0, klines=500, period=8):
 
         code = self.etf_dict2[name]
-        df_single= tdxData.get_kline_data(code, backset=backset, klines=klines, period=period)
+        df_single= self.tdx_data.get_kline_data(code, backset=backset, klines=klines, period=period)
         if '成交额' in df_single.columns:
             df_single.rename(columns={'成交额':'amount'},inplace=True)
         df_single.reset_index(drop=True,inplace=True)
@@ -97,7 +102,8 @@ class ETFDataFetcher:
         df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30'))
 
         ccbcode = self.etf_ccb_dict[name]
-        df_ccb =  tdxData.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
+        df_ccb =  self.tdx_data.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
+
         if len(df_ccb)==0:
             print('getSingleCCBData {code} ccb error, quitting')
             return
@@ -219,7 +225,8 @@ class ETFDataFetcher:
         df_all = pd.DataFrame()
 
         for k,v in self.etf_dict2.items():
-            df_single = self.get_Single_CCB_Data(self.tdx_data,k, backset=0, klines=500, period=8)
+            df_single = self.get_Single_CCB_Data(k, backset=0, klines=500, period=8)
+            self.ccb_range[f'{k}_CP'] =  (df_single['ccb'].values[-1]- self.ccb_range[f'{k}_min'])/(self.ccb_range[f'{k}_max']- self.ccb_range[f'{k}_min'])
             df_BKzjlx = self.get_BK_Zjlx(self.etf_bk_dict[k])
             df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
 

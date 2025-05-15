@@ -99,9 +99,11 @@ class MarketPlotter:
         funcx2 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[2])].values[1] - 1) * 100)
         funcx3 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[3])].values[1] - 1) * 100)
 
+        func_zdjs = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot['zdjs'].values[0] - 1) * 100)
         axes[0][1].plot(df_plot.index, df_plot['zdjs'], label='上涨家数', linewidth=1, color='red')
         axes[0][1].hlines(df_plot['zdjs'].min(), xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5,
                           alpha=0.0, zorder=-25)
+        axes[0][1].yaxis.set_major_formatter(mtick.FuncFormatter(func_zdjs))
         axes[0][1].minorticks_on()
         axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
         axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
@@ -114,7 +116,8 @@ class MarketPlotter:
         ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
         ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
         # ax0b.set_yticks([])
-        ax0b.legend(loc='upper left', framealpha=0.1)
+        axes[0][1].legend(loc='upper left', framealpha=0.1)
+        ax0b.legend(loc='upper right', framealpha=0.1)
 
         # 第二行：两个子图 (1, 0) 和 (1, 1)
         for i, k in enumerate(self.etf_dict.keys()):
@@ -174,7 +177,9 @@ class MarketPlotter:
             if k in png_dict.keys():
                 x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
-            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%',
+            ccb_key = f"{k}_CP"
+            ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
+            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%  CCB百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         # 第三行：两个子图 (2, 0) 和 (2, 1)
@@ -235,7 +240,9 @@ class MarketPlotter:
             if k in png_dict.keys():
                 x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
-            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%',
+            ccb_key = f"{k}_CP"
+            ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
+            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%   CCB百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         plt.tight_layout()
