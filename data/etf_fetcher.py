@@ -336,6 +336,7 @@ class ETFDataFetcher:
         df_zdjs = df_zdjs[preidx:]
         df_zdjs.reset_index(drop=True, inplace=True)
         self.zdjs = df_zdjs['zdjs'].values[-1]
+        df_zdjs['datetime'] = df_zdjs['datetime'].apply(lambda x: x.replace('13:00', '11:30'))
         df_all = pd.merge(df_zdjs[['datetime', 'zdjs']], df_dapan,  on='datetime', how='left')
         df_temp = pd.merge(df_all, df_etf1min, on='datetime', how='left')
 
