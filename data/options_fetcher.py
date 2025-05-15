@@ -317,10 +317,13 @@ class OptionsDataFetcher:
                 df_short[
                     ['datetime', 'short', 'shortm20', 'Short_crossdw', 'Short_crossup', 'Short_pivotup', 'Short_pivotdw']],
                 on='datetime', how='inner')
-            ttt = df_etf[['datetime', ('up', k), ('dw', k), ('boss', k), ('bossm10', k)]]
-            ttt.rename(columns={('up', k): 'up', ('dw', k): 'dw', ('boss', k): 'boss', ('bossm10', k): 'bossm10'},
+            ttt = df_etf[['datetime', ('up', k), ('dw', k), ('boss', k), ('bossm10', k), f'c_enterlong_{k}', f'c_entershort_{k}']]
+            ttt.rename(columns={('up', k): 'up', ('dw', k): 'dw', ('boss', k): 'boss', ('bossm10', k): 'bossm10',
+                                f'c_enterlong_{k}': 'c_enterlong', f'c_entershort_{k}': 'c_entershort'},
                        inplace=True)
             df_opt = pd.merge(df_opt, ttt, on='datetime', how='left')
+            df_opt['enterlong'] = df_opt.apply(lambda x: x.long if ~np.isnan(x['c_enterlong']) else np.nan, axis=1)
+            df_opt['entershort'] = df_opt.apply(lambda x: x.long if ~np.isnan(x['c_entershort']) else np.nan, axis=1)
             df_opt['up'] = df_opt['up'].replace(0.0, preclose_long)
             df_opt['dw'] = df_opt['dw'].replace(0.0, preclose_long)
 
@@ -337,10 +340,8 @@ class OptionsDataFetcher:
             new_optlist[k] = f'''{longtext}\n{shorttext}'''
 
         opt_Pivot = df_options.pivot_table(index='datetime', columns='etf', values=['long', 'longm20', 'short', 'shortm20',
-                                                                                    'Long_crossdw', 'Long_crossup',
-                                                                                    'Short_crossdw', 'Short_crossup',
-                                                                                    'Long_pivotup', 'Long_pivotdw',
-                                                                                    'Short_pivotup', 'Short_pivotdw', 'up',
-                                                                                    'dw', 'boss', 'bossm10'], dropna=False)
+                    'Long_crossdw', 'Long_crossup', 'Short_crossdw', 'Short_crossup',
+                    'Long_pivotup', 'Long_pivotdw','Short_pivotup', 'Short_pivotdw', 'up',
+                    'dw', 'boss', 'bossm10','enterlong', 'entershort'], dropna=False)
         self.new_optlist = new_optlist
         self.data = opt_Pivot

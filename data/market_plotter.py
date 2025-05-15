@@ -99,7 +99,7 @@ class MarketPlotter:
         funcx2 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[2])].values[1] - 1) * 100)
         funcx3 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[3])].values[1] - 1) * 100)
 
-        func_zdjs = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot['zdjs'].values[0] - 1) * 100)
+        func_zdjs = lambda x, pos: "{:.0f}\n{:.0f}%".format(x, (x / df_plot['zdjs'].values[0] - 1) * 100)
         axes[0][1].plot(df_plot.index, df_plot['zdjs'], label='上涨家数', linewidth=1, color='red')
         axes[0][1].hlines(df_plot['zdjs'].min(), xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5,
                           alpha=0.0, zorder=-25)
@@ -179,7 +179,7 @@ class MarketPlotter:
                        fontweight='bold', color='black')
             ccb_key = f"{k}_CP"
             ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
-            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%  CCB百分位:{ccb_percentile:.0f}%',
+            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%  CCB百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         # 第三行：两个子图 (2, 0) 和 (2, 1)
@@ -242,7 +242,7 @@ class MarketPlotter:
                        fontweight='bold', color='black')
             ccb_key = f"{k}_CP"
             ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
-            x.text(0.5, 0.92, f'{k} 涨跌:{pct:.2f}%   CCB百分位:{ccb_percentile:.0f}%',
+            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%   CCB百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         plt.tight_layout()
@@ -326,8 +326,10 @@ class MarketPlotter:
             x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
             x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('enterlong', k)], marker='o', s=9, color='red', alpha=0.5, zorder=-10)
+            x.scatter(df_opt.index, df_opt[('entershort', k)], marker='o', s=9, color='green', alpha=0.6, zorder=-10)
             x.set_ylim(ylim_min, ylim_max)
 
             x1 = x.twinx()
@@ -336,9 +338,7 @@ class MarketPlotter:
             x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx,
                       colors='green', lw=1, alpha=0.5, zorder=-20)
             x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5,
-                       zorder=-10)
-
+            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
             x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5,
                        zorder=-10)
@@ -351,7 +351,7 @@ class MarketPlotter:
             if k in png_dict.keys():
                 x.text(0.5, 1.02, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
                        fontweight='bold', color='black')
-            x.text(0.5, 0.95, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center',
+            x.text(0.5, 0.96, f'认购:{longpct:.0f}%  认沽:{shortpct:.0f}%', horizontalalignment='center',
                    transform=x.transAxes, fontsize=12,
                    fontweight='bold', color='black')
 

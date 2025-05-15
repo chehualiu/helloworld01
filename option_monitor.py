@@ -23,10 +23,10 @@ class OptionMonitor:
         while (time.strftime("%H%M", time.localtime())>='0910' and time.strftime("%H%M", time.localtime())<='1502'):
 
             if (time.strftime("%H%M", time.localtime())>'1131' and time.strftime("%H%M", time.localtime())<'1300'):
-                print(f'{time.strftime("%H%M%S", time.localtime())} sleep {self.sleepsec*2}s')
+                print(f'{time.strftime("%H:%M:%S", time.localtime())} sleep {self.sleepsec*2}s')
                 time.sleep(self.sleepsec*2)
             elif (time.strftime("%H%M", time.localtime())<'0930'):
-                print(f'{time.strftime("%H%M%S", time.localtime())} sleep {self.sleepsec*2}s')
+                print(f'{time.strftime("%H:%M:%S", time.localtime())} sleep {self.sleepsec*2}s')
                 time.sleep(self.sleepsec*2)
             else:
                 try:
