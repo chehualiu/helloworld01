@@ -106,7 +106,7 @@ class MarketPlotter:
         axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
         axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
         axes[0][1].legend(loc='upper right', framealpha=0.1)
-        axes[0][1].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.dp_boss:.0f}亿  上涨家数:{df_plot["zdjs"].values[-1]:.0f}',
+        axes[0][1].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.dp_boss:.0f}亿  上涨家数:{etf_fetcher.zdjs:.0f}',
                         horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
                         color='black')
 
@@ -239,7 +239,7 @@ class MarketPlotter:
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         plt.tight_layout()
-        plt.savefig(f'output\\持续监控全景_v2.8_{datetime.now().strftime("%Y%m%d")}.png')
+        plt.savefig(f'output\\持续监控全景_v3.0_{datetime.now().strftime("%Y%m%d")}.png')
         fig.clf()
         plt.close()
 
@@ -373,7 +373,7 @@ class MarketPlotter:
         stamp = datetime.now().strftime('%H:%M:%S')
         timetitle = f'{ktime}--时间戳 {stamp}'
         plt.suptitle(timetitle, x=0.5, y=1.0)
-        plt.savefig(f'output\\持续监控_期权_v2.8_{datetime.now().strftime("%Y%m%d")}.png')
+        plt.savefig(f'output\\持续监控_期权_v3.0_{datetime.now().strftime("%Y%m%d")}.png')
 
         fig.clf()
 

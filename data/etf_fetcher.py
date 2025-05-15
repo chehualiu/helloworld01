@@ -321,10 +321,14 @@ class ETFDataFetcher:
         df_zdjs = self.tdx_data.get_kline_data('880005', backset=0, klines=300, period=8)
         df_zdjs.rename(columns={'close': 'zdjs'}, inplace=True)
         tmp = df_zdjs[df_zdjs['datetime'].str.contains('15:00')]
-        preidx = tmp.index[0]
+        if '15:00' in df_zdjs['datetime'].values[-1]:
+            preidx = tmp.index[-2]
+        else:
+            preidx = tmp.index[-1]
+        # preidx = tmp.index[0]
         df_zdjs = df_zdjs[preidx:]
         df_zdjs.reset_index(drop=True, inplace=True)
-
+        self.zdjs = df_zdjs['zdjs'].values[-1]
         df_all = pd.merge(df_zdjs[['datetime', 'zdjs']], df_dapan,  on='datetime', how='left')
         df_temp = pd.merge(df_all, df_etf1min, on='datetime', how='left')
 

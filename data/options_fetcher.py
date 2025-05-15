@@ -28,7 +28,7 @@ class OptionsDataFetcher:
             code = '1.' + etfcode if etfcode[0] == '5' else '0.' + etfcode
             url3 = f'https://push2.eastmoney.com/api/qt/slist/get?cb=jQuery112400098284603835751_1695513185234&secid={code}&exti={expiredate[:6]}&spt=9&fltt=2&invt=2&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fields=f1,f2,f3,f4,f5,f12,f13,f14,f108,f152,f161,f249,f250,f330,f334,f339,f340,f341,f342,f343,f344,f345,f346,f347&fid=f161&pn=1&pz=20&po=0&wbp2u=|0|0|0|web&_=1695513185258'
             res = requests.get(url3)
-            tmp = re.search(r'^\w+$(.*)$;', res.text).group(1).replace('"-"', '"0"')
+            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"','"0"')
             single = pd.DataFrame(json.loads(tmp)['data']['diff'])
             df_T_data = pd.concat([df_T_data, single], ignore_index=True)
 
@@ -39,12 +39,22 @@ class OptionsDataFetcher:
         field_map4 = {"f2": "最新价", "f3": "涨跌幅", "f12": "code", "f14": "name", "f301": "到期日",
                       "f302": "杠杆比率", "f303": "实际杠杆", "f325": "Delta", "f326": "Gamma", "f327": "Vega",
                       "f328": "Theta", "f329": "Rho"}
+
         df_risk = pd.DataFrame()
-        for i in range(1, 11):
-            url4 = f'https://...{i}'
+        for i in range(1, 11, 1):
+            url4 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112308418460865815227_1695516975860&fid=f3&po=1&' + \
+                   'pz=' + '50' + '&pn=' + str(i) + '&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5' + \
+                   '&fields=f1,f2,f3,f12,f13,f14,f302,f303,f325,f326,f327,f329,f328,f301,f152,f154&fs=m:10'
             res = requests.get(url4)
-            ...
+            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
+            if len(tmp) < 100:
+                continue
+            single = pd.DataFrame(json.loads(tmp)['data']['diff'])
+            df_risk = pd.concat([df_risk, single])
+
         df_risk.rename(columns=field_map4, inplace=True)
+        # df_risk = df_risk[list(field_map4.values())]
+
         return df_risk[list(field_map4.values())]
 
     def get_all_options_v3(self) -> pd.DataFrame:
