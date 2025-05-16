@@ -15,7 +15,7 @@ def main():
     try:
         monitor.run()
     except KeyboardInterrupt:
-        print(f'{time.strftime("%H%M%S", time.localtime())} Monitoring stopped by user.')
+        print(f'{time.strftime("%H:%M:%S", time.localtime())} Monitoring stopped by user.')
     finally:
         monitor.tdx_data.close()
         end_time = time.time()

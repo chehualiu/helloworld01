@@ -3,6 +3,10 @@ from pytdx.exhq import TdxExHq_API
 import pandas as pd
 import requests, re,json
 
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+
+
 class mytdxData(object):
 
     def __init__(self,hq_hosts,Exhq_hosts):
@@ -46,6 +50,9 @@ class mytdxData(object):
         self.period_dict =  {"5min": 0, "15min": 1, "30min": 2, "60min": 3, "week": 5,
                   "month": 6, "1min": 8, "day": 9, "quater": 10, "year": 11}
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
+    def safe_get_request(self,url):
+        return requests.get(url)
     def TestConnection(self, Api, type, ip, port):
         if type == 'HQ':
             try:
@@ -98,7 +105,7 @@ class mytdxData(object):
               '&quoteColumns=&filter=(SECURITY_CODE="'+code+'")(IS_BFP="0")&pageNumber=1&pageSize=3&sortTypes=-1,-1'+ \
               '&sortColumns=NOTICE_DATE,EX_DIVIDEND_DATE&source=F10&client=PC&v=043409724372028'
         try:
-            res = requests.get(url)
+            res = self.safe_get_request(url)
             data1 = pd.DataFrame(json.loads(res.text)['result']['data'])
             if len(data1)==0:
                 return pd.DataFrame()

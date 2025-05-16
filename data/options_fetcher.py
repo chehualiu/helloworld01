@@ -6,6 +6,9 @@ import json
 import time
 import requests
 from datetime import datetime
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+
 
 
 class OptionsDataFetcher:
@@ -15,6 +18,9 @@ class OptionsDataFetcher:
         self.etf_dict2 = etf_dict2
         self.opt_path = opt_path
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
+    def safe_get_request(self,url):
+        return requests.get(url)
     def get_options_tformat(self, df_4T: pd.DataFrame) -> pd.DataFrame:
         field_map3 = {
             'f14': 'Cname', 'f12': 'Ccode', 'f2': 'Cprice', 'f3': 'CpctChg',
@@ -24,16 +30,22 @@ class OptionsDataFetcher:
         }
 
         df_T_data = pd.DataFrame()
-        for etfcode, expiredate in zip(df_4T['ETFcode'], df_4T['到期日']):
-            code = '1.' + etfcode if etfcode[0] == '5' else '0.' + etfcode
-            url3 = f'https://push2.eastmoney.com/api/qt/slist/get?cb=jQuery112400098284603835751_1695513185234&secid={code}&exti={expiredate[:6]}&spt=9&fltt=2&invt=2&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fields=f1,f2,f3,f4,f5,f12,f13,f14,f108,f152,f161,f249,f250,f330,f334,f339,f340,f341,f342,f343,f344,f345,f346,f347&fid=f161&pn=1&pz=20&po=0&wbp2u=|0|0|0|web&_=1695513185258'
-            res = requests.get(url3)
-            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"','"0"')
-            single = pd.DataFrame(json.loads(tmp)['data']['diff'])
-            df_T_data = pd.concat([df_T_data, single], ignore_index=True)
+        try:
+            for etfcode, expiredate in zip(df_4T['ETFcode'], df_4T['到期日']):
+                code = '1.' + etfcode if etfcode[0] == '5' else '0.' + etfcode
+                url3 = f'https://push2.eastmoney.com/api/qt/slist/get?cb=jQuery112400098284603835751_1695513185234&secid={code}&exti={expiredate[:6]}&spt=9&fltt=2&invt=2&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fields=f1,f2,f3,f4,f5,f12,f13,f14,f108,f152,f161,f249,f250,f330,f334,f339,f340,f341,f342,f343,f344,f345,f346,f347&fid=f161&pn=1&pz=20&po=0&wbp2u=|0|0|0|web&_=1695513185258'
+                res = self.safe_get_request(url3)
+                tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"','"0"')
+                single = pd.DataFrame(json.loads(tmp)['data']['diff'])
+                df_T_data = pd.concat([df_T_data, single], ignore_index=True)
 
-        df_T_data.rename(columns=field_map3, inplace=True)
-        return df_T_data[list(field_map3.values())]
+            df_T_data.rename(columns=field_map3, inplace=True)
+            return df_T_data[list(field_map3.values())]
+
+        except Exception as e:
+            print(f"Error in get_options_tformat: {e}")
+            return pd.DataFrame()
+
 
     def get_options_risk_data(self) -> pd.DataFrame:
         field_map4 = {"f2": "最新价", "f3": "涨跌幅", "f12": "code", "f14": "name", "f301": "到期日",
@@ -41,21 +53,25 @@ class OptionsDataFetcher:
                       "f328": "Theta", "f329": "Rho"}
 
         df_risk = pd.DataFrame()
-        for i in range(1, 11, 1):
-            url4 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112308418460865815227_1695516975860&fid=f3&po=1&' + \
-                   'pz=' + '50' + '&pn=' + str(i) + '&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5' + \
-                   '&fields=f1,f2,f3,f12,f13,f14,f302,f303,f325,f326,f327,f329,f328,f301,f152,f154&fs=m:10'
-            res = requests.get(url4)
-            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
-            if len(tmp) < 100:
-                continue
-            single = pd.DataFrame(json.loads(tmp)['data']['diff'])
-            df_risk = pd.concat([df_risk, single])
+        try:
+            for i in range(1, 11, 1):
+                url4 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112308418460865815227_1695516975860&fid=f3&po=1&' + \
+                       'pz=' + '50' + '&pn=' + str(i) + '&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5' + \
+                       '&fields=f1,f2,f3,f12,f13,f14,f302,f303,f325,f326,f327,f329,f328,f301,f152,f154&fs=m:10'
+                res = self.safe_get_request(url4)
+                tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
+                if len(tmp) < 100:
+                    continue
+                single = pd.DataFrame(json.loads(tmp)['data']['diff'])
+                df_risk = pd.concat([df_risk, single])
 
-        df_risk.rename(columns=field_map4, inplace=True)
-        # df_risk = df_risk[list(field_map4.values())]
+            df_risk.rename(columns=field_map4, inplace=True)
+            # df_risk = df_risk[list(field_map4.values())]
 
-        return df_risk[list(field_map4.values())]
+            return df_risk[list(field_map4.values())]
+        except Exception as e:
+            print(f"Error in get_options_risk_data: {e}")
+            return pd.DataFrame()
 
     def get_all_options_v3(self) -> pd.DataFrame:
         header = {
@@ -72,14 +88,14 @@ class OptionsDataFetcher:
         url1 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112307429657982724098_1687701611430&fid=f250' + \
                '&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5' + \
                '&fields=f1,f2,f3,f12,f13,f14,f161,f250,f330,f331,f332,f333,f334,f335,f337,f301,f152&fs=m:10'
-        res = requests.get(url1, headers=header)
+        res = self.safe_get_request(url1, headers=header)
         tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
         data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
         data1.rename(columns=field_map0, inplace=True)
 
         for i in range(2, 6, 1):
             url1i = url1.replace('&pn=1&', f'&pn={i}&')
-            resi = requests.get(url1i, headers=header)
+            resi = self.safe_get_request(url1i, headers=header)
             if len(resi.text) > 500:
                 tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
                 data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
@@ -88,14 +104,14 @@ class OptionsDataFetcher:
                     data1 = pd.concat([data1, data1i])
 
         url2 = url1[:-1] + '2'
-        res = requests.get(url2, headers=header)
+        res = self.safe_get_request(url2, headers=header)
         tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
         data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
         data2.rename(columns=field_map0, inplace=True)
 
         for i in range(2, 6, 1):
             url1i = url2.replace('&pn=1&', f'&pn={i}&')
-            resi = requests.get(url1i, headers=header)
+            resi = self.safe_get_request(url1i, headers=header)
             if len(resi.text) > 500:
                 tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
                 data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
@@ -122,23 +138,23 @@ class OptionsDataFetcher:
         df_4T.columns = ['ETFcode', '到期日', '数量']
 
         df_T_format = self.get_options_tformat(df_4T)
-        tempc = df_T_format[['Ccode', 'C持仓量', 'Cvol']]
-        tempc.columns = ['code', '持仓量', 'vol']
-        tempp = df_T_format[['Pcode', 'P持仓量', 'Pvol']]
-        tempp.columns = ['code', '持仓量', 'vol']
-        temp = pd.concat([tempc, tempp])
-        temp['vol'] = temp['vol'].astype(int)
-        data = pd.merge(data, temp, on='code', how='left')
-        data['amount'] = data['close'] * data['vol']
+        if len(df_T_format) >0:
+            tempc = df_T_format[['Ccode', 'C持仓量', 'Cvol']]
+            tempc.columns = ['code', '持仓量', 'vol']
+            tempp = df_T_format[['Pcode', 'P持仓量', 'Pvol']]
+            tempp.columns = ['code', '持仓量', 'vol']
+            temp = pd.concat([tempc, tempp])
+            temp['vol'] = temp['vol'].astype(int)
+            data = pd.merge(data, temp, on='code', how='left')
+            data['amount'] = data['close'] * data['vol']
 
         df_risk = self.get_options_risk_data()
-        data = pd.merge(data, df_risk[['code', '杠杆比率', '实际杠杆', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho']],
-                        on='code', how='left')
-
+        if len(df_risk) > 0:
+            data = pd.merge(data, df_risk[['code', '杠杆比率', '实际杠杆', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho']],
+                            on='code', how='left')
         return data
 
     def get_my_options(self, filter_dict):
-        # global dte_high, dte_low, close_Threshold_mean, opt_fn, tdxdata
 
         # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
         now = self.tdx_data.get_kline_data('999999', 0, 20, 8)

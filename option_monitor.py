@@ -19,14 +19,24 @@ class OptionMonitor:
         self.plotter = MarketPlotter(self.config['etf_dict'])
         self.sleepsec = self.config['sleep_seconds']
 
-    def run(self):
-        while (time.strftime("%H%M", time.localtime())>='0910' and time.strftime("%H%M", time.localtime())<='1502'):
+    def is_trading_time(self):
+        now = time.strftime("%H%M", time.localtime())
+        return '0910' <= now <= '1502'
 
-            if (time.strftime("%H%M", time.localtime())>'1131' and time.strftime("%H%M", time.localtime())<'1300'):
-                print(f'{time.strftime("%H:%M:%S", time.localtime())} sleep {self.sleepsec*2}s')
+    def is_pre_market(self):
+        now = time.strftime("%H%M", time.localtime())
+        return '0900' <= now <= '0930'
+    def is_noon_break(self):
+        now = time.strftime("%H%M", time.localtime())
+        return '1131' <= now <= '1259'
+    def run(self):
+        while self.is_trading_time():
+
+            if self.is_noon_break():
+                print(f'{time.strftime("%H:%M:%S", time.localtime())} 中午休息 sleep {self.sleepsec*2}s')
                 time.sleep(self.sleepsec*2)
-            elif (time.strftime("%H%M", time.localtime())<'0930'):
-                print(f'{time.strftime("%H:%M:%S", time.localtime())} sleep {self.sleepsec*2}s')
+            elif self.is_pre_market():
+                print(f'{time.strftime("%H:%M:%S", time.localtime())} 盘前竞价 {self.sleepsec*2}s')
                 time.sleep(self.sleepsec*2)
             else:
                 try:
@@ -37,6 +47,7 @@ class OptionMonitor:
                         print("期权未能选取完整，请检查配置")
                     self.etf_fetcher.get_full_data()
                     self.plotter.plot_full_day(self.etf_fetcher, png_dict)
+
                     if self.config['plotimgs']['option'] == 'Y' and valid:
                         self.options_fetcher.get_option_data(png_dict, df_optlist, self.etf_fetcher.data)
                         self.plotter.plot_options(png_dict, self.options_fetcher.data, self.options_fetcher.new_optlist)
@@ -64,8 +75,8 @@ class OptionMonitor:
 
 
     def restart_connection(self):
-        self.tdx_data.close()
-        hosts = self.config['tdx_hosts']
-        ex_hosts = self.config['tdx_exhosts']
-        self.tdx_data = mytdxData(hosts, ex_hosts)
-        time.sleep(10)
+        try:
+            self.tdx_data.close()
+        finally:
+            self.tdx_data = mytdxData(self.config['tdx_hosts'], self.config['tdx_exhosts'])
+            time.sleep(10)

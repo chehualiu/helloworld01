@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import requests, json, time
 from datetime import datetime
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+
 
 class ETFDataFetcher:
     def __init__(self, tdx_data, etf_dict2: dict, ccb_dict: dict, bk_dict: dict, backset: int = 0):
@@ -19,8 +22,11 @@ class ETFDataFetcher:
             self.ccb_range[f'{k}_max'] = ccb_temp['close'].max()
             self.ccb_range[f'{k}_min'] = ccb_temp['close'].min()
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
+    def safe_get_request(self,url):
+        return requests.get(url)
+
     def calAmtFactor(self,n):
-        global tdxdata
 
         # df_day = pd.DataFrame(api.get_index_bars(9, 1, '999999', 0, n+1))
         df_day = self.tdx_data.get_kline_data('999999', 0, n + 1, 9)
@@ -62,7 +68,8 @@ class ETFDataFetcher:
 
     def fetch_bk_zjlx_rt(self, bkcode: str) -> pd.DataFrame:
         url = f'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.{bkcode}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_={int(time.time())}'
-        res = requests.get(url)
+        # res = requests.get(url)
+        res = self.safe_get_request(url)
         try:
             data1 = json.loads(res.text[42:-2])['data']['klines']
         except Exception:
@@ -76,7 +83,8 @@ class ETFDataFetcher:
 
         url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.' + bkcode + \
               '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_=1615545163206'
-        res = requests.get(url)
+        # res = requests.get(url)
+        res = self.safe_get_request(url)
 
         try:
             data1 = json.loads(res.text[42:-2])['data']['klines']
@@ -133,7 +141,7 @@ class ETFDataFetcher:
         url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=1.000001&secid2=0.399001&' + \
               'fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63&' + \
               'ut=b2884a393a59ad64002292a3e90d46a5&cb=jQuery18308174687833149541_1607783437004&_=1607783437202'
-        res = requests.get(url)
+        res = self.safe_get_request(url)
 
         try:
             data1 = json.loads(res.text[41:-2])['data']['klines']
