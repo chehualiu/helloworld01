@@ -17,6 +17,7 @@ class ETFDataFetcher:
         factor = self.calAmtFactor(5)
         self.factor = factor + [1.00]
         self.ccb_range = {}
+        self.ccb_pctChg = {}
         for k,v in self.etf_ccb_dict.items():
             ccb_temp = self.tdx_data.get_kline_data(v, backset=0, klines=200, period=9)
             self.ccb_range[f'{k}_max'] = ccb_temp['close'].max()
@@ -130,7 +131,7 @@ class ETFDataFetcher:
         df_ccb['ccb_pct'] = df_ccb['ccb'].apply(lambda x: x/pre_ccb*1-1)
         df_ccb['ccb_open2pct'] =  df_ccb['ccb'].apply(lambda x: x/ccb_open*1-1)
         df_ccb['ccb_above_open'] =  df_ccb['ccb'].apply(lambda x: 1 if x>ccb_open else 0)
-
+        self.ccb_pctChg[name] = df_ccb['ccb_pct'].values[-1]
         data = pd.merge(df_ccb[['datetime','ccb','ccbh','ccbl','ccbo','ccbm20','ccb_pct','pre_ccb','ccb_open','ccb_open2pct','ccb_above_open','ccbm20up']],
                         df_single[['datetime','open','close','high','low','volume','amount']], on='datetime',how='left')
 
@@ -226,9 +227,9 @@ class ETFDataFetcher:
 
     def get_ETF_data(self):
 
-        periodkey = '1分钟k线'
-        period = 8
-        klines= 500
+        # periodkey = '1分钟k线'
+        # period = 8
+        # klines= 500
 
         df_all = pd.DataFrame()
 

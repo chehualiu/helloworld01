@@ -179,7 +179,7 @@ class MarketPlotter:
                        fontweight='bold', color='black')
             ccb_key = f"{k}_CP"
             ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
-            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%  CCB百分位:{ccb_percentile:.0f}%',
+            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%  CCB涨跌:{etf_fetcher.ccb_pctChg[k]*100:.2f}%_百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         # 第三行：两个子图 (2, 0) 和 (2, 1)
@@ -242,7 +242,7 @@ class MarketPlotter:
                        fontweight='bold', color='black')
             ccb_key = f"{k}_CP"
             ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
-            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%   CCB百分位:{ccb_percentile:.0f}%',
+            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%   CCB涨跌:{etf_fetcher.ccb_pctChg[k]*100:.1f}%_百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         plt.tight_layout()
