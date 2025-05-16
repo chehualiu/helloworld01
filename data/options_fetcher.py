@@ -19,8 +19,8 @@ class OptionsDataFetcher:
         self.opt_path = opt_path
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
-    def safe_get_request(self,url):
-        return requests.get(url)
+    def safe_get_request(self,url, headers=None):
+        return requests.get(url, headers=headers)
     def get_options_tformat(self, df_4T: pd.DataFrame) -> pd.DataFrame:
         field_map3 = {
             'f14': 'Cname', 'f12': 'Ccode', 'f2': 'Cprice', 'f3': 'CpctChg',
@@ -90,6 +90,7 @@ class OptionsDataFetcher:
                '&fields=f1,f2,f3,f12,f13,f14,f161,f250,f330,f331,f332,f333,f334,f335,f337,f301,f152&fs=m:10'
         res = self.safe_get_request(url1, headers=header)
         tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
+
         data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
         data1.rename(columns=field_map0, inplace=True)
 
@@ -104,7 +105,7 @@ class OptionsDataFetcher:
                     data1 = pd.concat([data1, data1i])
 
         url2 = url1[:-1] + '2'
-        res = self.safe_get_request(url2, headers=header)
+        res = self.safe_get_request(url2, headers=header)#, headers=header)
         tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
         data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
         data2.rename(columns=field_map0, inplace=True)
