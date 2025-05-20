@@ -107,8 +107,8 @@ class ETFDataFetcher:
             df_single.rename(columns={'成交额':'amount'},inplace=True)
         df_single.reset_index(drop=True,inplace=True)
         if len(df_single)==0:
-            print(f'getSingleCCBData {code} kline error,quitting')
-            return
+            print(f'get_Single_CCB_Data {code} kline error')
+            return pd.DataFrame()
         # df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30') if x[-5:]=='13:00' else x)
         df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00','11:30'))
 
@@ -116,8 +116,8 @@ class ETFDataFetcher:
         df_ccb =  self.tdx_data.get_kline_data(ccbcode, backset=backset, klines=klines, period=period)
 
         if len(df_ccb)==0:
-            print('getSingleCCBData {code} ccb error, quitting')
-            return
+            print('get_Single_CCB_Data {code} ccb error')
+            return pd.DataFrame()
         tmp = df_ccb[df_ccb['datetime'].str.contains('15:00')]
         if '15:00' in df_ccb['datetime'].values[-1]:
             preidx = tmp.index[-2]
@@ -236,7 +236,12 @@ class ETFDataFetcher:
         df_all = pd.DataFrame()
 
         for k,v in self.etf_dict2.items():
+
             df_single = self.get_Single_CCB_Data(k, backset=0, klines=500, period=8)
+            if len(df_single)==0:
+                print(f'get_Single_CCB_Data {k} kline error')
+                return pd.DataFrame()
+
             self.ccb_range[f'{k}_CP'] =  (df_single['ccb'].values[-1]- self.ccb_range[f'{k}_min'])/(self.ccb_range[f'{k}_max']- self.ccb_range[f'{k}_min'])
             df_BKzjlx = self.get_BK_Zjlx(self.etf_bk_dict[k])
             df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
@@ -333,6 +338,9 @@ class ETFDataFetcher:
                     (df_dapan['close'] < df_dapan['close'].shift(1)), 'pivotdw'] = 0.5
 
         df_etf1min = self.get_ETF_data()
+        if len(df_etf1min)==0:
+            print(f'get_ETF_data error')
+            return pd.DataFrame()
         df_etf1min.reset_index(drop=False, inplace=True)
         df_etf1min['datetime'] = df_etf1min['datetime'].apply(lambda x: x.replace('13:00','11:30'))
 
@@ -350,7 +358,6 @@ class ETFDataFetcher:
         df_zdjs['datetime'] = df_zdjs['datetime'].apply(lambda x: x.replace('13:00', '11:30'))
         df_all = pd.merge(df_zdjs[['datetime', 'zdjs']], df_dapan,  on='datetime', how='left')
         df_temp = pd.merge(df_all, df_etf1min, on='datetime', how='left')
-
 
 
         for k, v in self.etf_dict2.items():
@@ -424,4 +431,4 @@ class ETFDataFetcher:
         self.dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
         self.data = df_temp
 
-        # return df_temp
+        return df_temp

@@ -18,6 +18,7 @@ class OptionMonitor:
         self.etf_fetcher = ETFDataFetcher(self.tdx_data, self.config['etf_dict2'], self.config['etf_ccb_dict'], self.config['etfbk_dict'])
         self.plotter = MarketPlotter(self.config['etf_dict'])
         self.sleepsec = self.config['sleep_seconds']
+        self.data = pd.DataFrame()
 
     def is_trading_time(self):
         now = time.strftime("%H%M", time.localtime())
@@ -45,13 +46,17 @@ class OptionMonitor:
                     valid = all('流动性' not in v for v in png_dict.values())
                     if not valid:
                         print("期权未能选取完整，请检查配置")
-                    self.etf_fetcher.get_full_data()
-                    self.plotter.plot_full_day(self.etf_fetcher, png_dict)
+                    tt = self.etf_fetcher.get_full_data()
+                    if len(tt)>0:
+                        self.plotter.plot_full_day(self.etf_fetcher, png_dict)
 
-                    if self.config['plotimgs']['option'] == 'Y' and valid:
-                        self.options_fetcher.get_option_data(png_dict, df_optlist, self.etf_fetcher.data)
-                        self.plotter.plot_options(png_dict, self.options_fetcher.data, self.options_fetcher.new_optlist)
-                    time.sleep(self.sleepsec)
+                        if self.config['plotimgs']['option'] == 'Y' and valid:
+                            self.options_fetcher.get_option_data(png_dict, df_optlist, self.etf_fetcher.data)
+                            self.plotter.plot_options(png_dict, self.options_fetcher.data, self.options_fetcher.new_optlist)
+                        time.sleep(self.sleepsec)
+                    else:
+                        print(f"{time.strftime('%H:%M:%S', time.localtime())} 数据获取失败")
+                        time.sleep(self.sleepsec)
                 except Exception as e:
                     print(f"Error occurred: {e}")
                     self.restart_connection()
