@@ -88,37 +88,45 @@ class OptionsDataFetcher:
         url1 = 'https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery112307429657982724098_1687701611430&fid=f250' + \
                '&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&ut=b2884a393a59ad64002292a3e90d46a5' + \
                '&fields=f1,f2,f3,f12,f13,f14,f161,f250,f330,f331,f332,f333,f334,f335,f337,f301,f152&fs=m:10'
-        res = self.safe_get_request(url1, headers=header)
-        tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
 
-        data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
-        data1.rename(columns=field_map0, inplace=True)
+        try:
+            res = self.safe_get_request(url1, headers=header)
+            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
 
-        for i in range(2, 6, 1):
-            url1i = url1.replace('&pn=1&', f'&pn={i}&')
-            resi = self.safe_get_request(url1i, headers=header)
-            if len(resi.text) > 500:
-                tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
-                data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
-                data1i.rename(columns=field_map0, inplace=True)
-                if len(data1i) > 0:
-                    data1 = pd.concat([data1, data1i])
+            data1 = pd.DataFrame(json.loads(tmp)['data']['diff'])
+            data1.rename(columns=field_map0, inplace=True)
+
+            for i in range(2, 6, 1):
+                url1i = url1.replace('&pn=1&', f'&pn={i}&')
+                resi = self.safe_get_request(url1i, headers=header)
+                if len(resi.text) > 500:
+                    tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+                    data1i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+                    data1i.rename(columns=field_map0, inplace=True)
+                    if len(data1i) > 0:
+                        data1 = pd.concat([data1, data1i])
+        except Exception as e:
+            print(f"get_all_options_v3 data1 error: {e}")
 
         url2 = url1[:-1] + '2'
         res = self.safe_get_request(url2, headers=header)#, headers=header)
-        tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
-        data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
-        data2.rename(columns=field_map0, inplace=True)
 
-        for i in range(2, 6, 1):
-            url1i = url2.replace('&pn=1&', f'&pn={i}&')
-            resi = self.safe_get_request(url1i, headers=header)
-            if len(resi.text) > 500:
-                tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
-                data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
-                data2i.rename(columns=field_map0, inplace=True)
-                if len(data2i) > 0:
-                    data2 = pd.concat([data2, data2i])
+        try:
+            tmp = re.search(r'^\w+\((.*)\);$', res.text).group(1).replace('"-"', '"0"')
+            data2 = pd.DataFrame(json.loads(tmp)['data']['diff'])
+            data2.rename(columns=field_map0, inplace=True)
+
+            for i in range(2, 6, 1):
+                url1i = url2.replace('&pn=1&', f'&pn={i}&')
+                resi = self.safe_get_request(url1i, headers=header)
+                if len(resi.text) > 500:
+                    tmpi = re.search(r'^\w+\((.*)\);$', resi.text).group(1).replace('"-"', '"0"')
+                    data2i = pd.DataFrame(json.loads(tmpi)['data']['diff'])
+                    data2i.rename(columns=field_map0, inplace=True)
+                    if len(data2i) > 0:
+                        data2 = pd.concat([data2, data2i])
+        except Exception as e:
+            print(f"get_all_options_v3 data2 error: {e}")
 
         data = pd.concat([data1, data2])
         data = data[list(field_map0.values())]

@@ -70,10 +70,12 @@ class ETFDataFetcher:
     def fetch_bk_zjlx_rt(self, bkcode: str) -> pd.DataFrame:
         url = f'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.{bkcode}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_={int(time.time())}'
         # res = requests.get(url)
-        res = self.safe_get_request(url)
+
         try:
+            res = self.safe_get_request(url)
             data1 = json.loads(res.text[42:-2])['data']['klines']
         except Exception:
+            print(f'fetch_bk_zjlx_rt {bkcode} data error')
             return pd.DataFrame({'datetime': ['2000-01-01'], 'boss': [0]})
         min_df = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
         min_df = min_df[['datetime', 'boss']]
@@ -85,11 +87,11 @@ class ETFDataFetcher:
         url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.' + bkcode + \
               '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_=1615545163206'
         # res = requests.get(url)
-        res = self.safe_get_request(url)
-
         try:
+            res = self.safe_get_request(url)
             data1 = json.loads(res.text[42:-2])['data']['klines']
         except:
+            print(f'get_BK_Zjlx {bkcode} data error')
             return pd.DataFrame({'datetime': ['2000-01-01'], 'boss': [0]})
         min = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
         min.drop(labels=['small', 'med', 'big', 'huge'], axis=1, inplace=True)
@@ -142,11 +144,11 @@ class ETFDataFetcher:
         url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=1.000001&secid2=0.399001&' + \
               'fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63&' + \
               'ut=b2884a393a59ad64002292a3e90d46a5&cb=jQuery18308174687833149541_1607783437004&_=1607783437202'
-        res = self.safe_get_request(url)
-
         try:
+            res = self.safe_get_request(url)
             data1 = json.loads(res.text[41:-2])['data']['klines']
         except:
+            print('MINgetZjlxDP error')
             return pd.DataFrame()
         min = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
         min.drop(labels=['small', 'med', 'big', 'huge'], axis=1, inplace=True)
