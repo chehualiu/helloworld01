@@ -1,8 +1,11 @@
 /output
 /logs
 /history
+/.idea/*
+/.vscode
 
-
+*.xml
+*.idea
 *.cfg
 *.log
 *.pyc

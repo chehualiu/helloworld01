@@ -66,7 +66,9 @@ class MarketPlotter:
 
         ax0c.bar(df_plot.index, df_plot.allamt, label='amount', color='grey', alpha=0.3, zorder=-14)
         ax0c.set_yticks([])
-        ax0d.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
+        # ax0d.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
+        ax0d.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
+        ax0d.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
         ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
         ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
@@ -80,7 +82,7 @@ class MarketPlotter:
         ax0e.set_ylim(-10, 10)
         ax0e.set_yticks([])
 
-        axes[0][0].text(0.5, 1.02, f'成交量(绿线):{etf_fetcher.dp_amount:.0f}亿   {timetitle}',
+        axes[0][0].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.dp_boss:.0f}亿   {timetitle}',
                         horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold',
                         color='black')
 
@@ -108,16 +110,17 @@ class MarketPlotter:
         axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
         axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
         axes[0][1].legend(loc='upper right', framealpha=0.1)
-        axes[0][1].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.dp_boss:.0f}亿  上涨家数:{etf_fetcher.zdjs:.0f}',
+        axes[0][1].text(0.5, 1.02, f'成交量(绿线):{etf_fetcher.dp_amount:.0f}亿  上涨家数:{etf_fetcher.zdjs:.0f}',
                         horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
                         color='black')
 
-        ax0b = axes[0][1].twinx()
-        ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
-        ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
+        ax0b1 = axes[0][1].twinx()
+        # ax0b.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
+        # ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
+        ax0b1.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
         # ax0b.set_yticks([])
         axes[0][1].legend(loc='upper left', framealpha=0.1)
-        ax0b.legend(loc='upper right', framealpha=0.1)
+        ax0b1.legend(loc='upper right', framealpha=0.1)
 
         # 第二行：两个子图 (1, 0) 和 (1, 1)
         for i, k in enumerate(self.etf_dict.keys()):

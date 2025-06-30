@@ -407,25 +407,6 @@ class ETFDataFetcher:
         df_temp['dw'] = df_temp.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
         df_temp['bossm10'] = df_temp['boss'].rolling(10).mean()
 
-        # boss = df_temp['boss'].values[-1]
-        # bossr1 = df_temp['boss'].values[-2]
-        # bossm10 = df_temp['bossm10'].values[-1]
-        # bossm10r1 = df_temp['bossm10'].values[-2]
-
-        # if boss>bossm10 and bossr1<bossm10r1:
-        #     playsound('utils\\morning.mp3')
-        #     print('主力资金上穿均线')
-        #     if len(pushurl)>10:
-        #         msgURL = pushurl + '主力资金上穿均线'
-        #         requests.get(msgURL)
-        # elif boss<bossm10 and bossr1>bossm10r1:
-        #     playsound('utils\\swoosh.mp3')
-        #     print('主力资金下穿均线')
-        #     if len(pushurl) > 10:
-        #         msgURL = pushurl + '主力资金下穿均线'
-        #         requests.get(msgURL)
-        # else:
-        #     pass
 
         self.dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
         self.dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
