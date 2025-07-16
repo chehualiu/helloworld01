@@ -20,7 +20,7 @@ class OptionsDataFetcher:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
     def safe_get_request(self,url, headers=None):
-        return requests.get(url, headers=headers)
+        return requests.get(url, headers=headers, proxies={})
     def get_options_tformat(self, df_4T: pd.DataFrame) -> pd.DataFrame:
         field_map3 = {
             'f14': 'Cname', 'f12': 'Ccode', 'f2': 'Cprice', 'f3': 'CpctChg',

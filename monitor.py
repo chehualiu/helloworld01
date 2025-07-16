@@ -9,7 +9,7 @@ def main():
     start_time = time.time()
     print("Job start !!!", time.strftime('%Y%m%d_%H:%M:%S'))
 
-    monitor = OptionMonitor(config_file='monitor_v2.8.cfg')
+    monitor = OptionMonitor(config_file='monitor_v3.0.cfg')
     # opt_path = dict(config.items('path'))['opt_path']
 
     try:

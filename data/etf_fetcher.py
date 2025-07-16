@@ -25,7 +25,7 @@ class ETFDataFetcher:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
     def safe_get_request(self,url):
-        return requests.get(url)
+        return requests.get(url, proxies={})
 
     def calAmtFactor(self,n):
 
@@ -69,7 +69,7 @@ class ETFDataFetcher:
 
     def fetch_bk_zjlx_rt(self, bkcode: str) -> pd.DataFrame:
         url = f'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.{bkcode}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_={int(time.time())}'
-        # res = requests.get(url)
+        # res = requests.get(url, proxies={})
 
         try:
             res = self.safe_get_request(url)
@@ -86,7 +86,7 @@ class ETFDataFetcher:
 
         url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.' + bkcode + \
               '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_=1615545163206'
-        # res = requests.get(url)
+        # res = requests.get(url, proxies={})
         try:
             res = self.safe_get_request(url)
             data1 = json.loads(res.text[42:-2])['data']['klines']

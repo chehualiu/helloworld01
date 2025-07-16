@@ -52,7 +52,7 @@ class mytdxData(object):
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
     def safe_get_request(self,url):
-        return requests.get(url)
+        return requests.get(url, proxies={})
     def TestConnection(self, Api, type, ip, port):
         if type == 'HQ':
             try:
