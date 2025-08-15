@@ -2,57 +2,79 @@ from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
 import pandas as pd
 import requests, re,json
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from tenacity import retry, stop_after_attempt, wait_fixed
+'''
+[tdx_hosts]
+host_1 = 招商深圳云,39.108.28.83,7709
+host_2 = 招商深圳云2,109.244.69.145, 7709
+host_3 = 招商北京云,39.105.251.234, 7709
+host_4 = 招商北京云2,120.53.204.206, 7709
+host_5 = 招商北京云3,109.244.7.166, 7709
+host_6 = 招商广州云,111.230.189.225, 7709
+host_7 = 招商广州云2,106.53.111.126, 7709
+host_8 = 招商上海云,47.100.132.162, 7709
+host_9 = 招商上海云2,43.145.21.43, 7709
+host_10 = 招商教育网,116.57.224.5, 7709
+host_11 = 招商深圳电信,183.62.101.52, 7709
+host_12 = 招商深圳联通,58.251.16.180, 7709
 
-
+[tdx_exhosts]
+exhost_1 = 招商深圳云1,39.108.28.120,7727
+exhost_2 = 招商广州云,134.175.214.53, 7727
+exhost_3 = 招商北京云,182.92.255.107, 7727
+exhost_4 = 招商北京云2,140.143.179.226, 7727
+exhost_5 = 招商上海云,47.100.132.106, 7727
+exhost_6 = 招商上海云2,212.64.116.126, 7727
+'''
 
 class mytdxData(object):
 
-    def __init__(self,hq_hosts,Exhq_hosts):
-
+    def __init__(self, hq_hosts, Exhq_hosts):
         api = TdxHq_API(heartbeat=True)
         Exapi = TdxExHq_API(heartbeat=True)
         api_connected = False
         Exapi_connected = False
+        self.hq_hosts = hq_hosts
+        self.Exhq_hosts = Exhq_hosts
 
-        for i in range(len(hq_hosts)):
-            name = hq_hosts[i][0]
-            ip = hq_hosts[i][1]
-            port = hq_hosts[i][2]
-            if self.TestConnection(api, 'HQ', ip, port) == False:  # or \
+        # 测速并排序HQ服务器
+        sorted_hq_hosts = self.speed_test_hosts(hq_hosts, 'HQ')
+        for i in range(len(sorted_hq_hosts)):
+            name = sorted_hq_hosts[i][0]
+            ip = sorted_hq_hosts[i][1]
+            port = sorted_hq_hosts[i][2]
+            if self.TestConnection(api, 'HQ', ip, port) == False:
                 continue
             else:
                 api_connected = True
-                print(f'connection to HQ server[{i}]! {name} {ip}')
+                print(f'connection to HQ server[{i}]!{name}{ip} (response time: {sorted_hq_hosts[i][3]:.3f}s)')
                 break
         if api_connected == False:
             print('All HQ server Failed!!!')
-            # exit(0)
 
-        for i in range(len(Exhq_hosts)):
-            name = Exhq_hosts[i][0]
-            ip = Exhq_hosts[i][1]
-            port = Exhq_hosts[i][2]
-            if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:  # or \
+        # 测速并排序ExHQ服务器
+        sorted_exhq_hosts = self.speed_test_hosts(Exhq_hosts, 'ExHQ')
+        for i in range(len(sorted_exhq_hosts)):
+            name = sorted_exhq_hosts[i][0]
+            ip = sorted_exhq_hosts[i][1]
+            port = sorted_exhq_hosts[i][2]
+            if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:
                 continue
             else:
                 Exapi_connected = True
-                print(f'connection to ExHQ server[{i}]! {name} {ip}')
+                print(f'connection to ExHQ server[{i}]!{name}{ip} (response time: {sorted_exhq_hosts[i][3]:.3f}s)')
                 break
         if Exapi_connected == False:
             print('All ExHQ server Failed!!!')
-            # exit(0)
 
         self.api = api
         self.Exapi = Exapi
-        self.useless_cols = ['year','month','day','hour','minute','preclose','change']
-        self.period_dict =  {"5min": 0, "15min": 1, "30min": 2, "60min": 3, "week": 5,
-                  "month": 6, "1min": 8, "day": 9, "quater": 10, "year": 11}
+        self.useless_cols = ['year', 'month', 'day', 'hour', 'minute', 'preclose', 'change']
+        self.period_dict = {"5min": 0, "15min": 1, "30min": 2, "60min": 3, "week": 5,
+                            "month": 6, "1min": 8, "day": 9, "quater": 10, "year": 11}
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
-    def safe_get_request(self,url):
-        return requests.get(url, proxies={})
     def TestConnection(self, Api, type, ip, port):
         if type == 'HQ':
             try:
@@ -105,7 +127,7 @@ class mytdxData(object):
               '&quoteColumns=&filter=(SECURITY_CODE="'+code+'")(IS_BFP="0")&pageNumber=1&pageSize=3&sortTypes=-1,-1'+ \
               '&sortColumns=NOTICE_DATE,EX_DIVIDEND_DATE&source=F10&client=PC&v=043409724372028'
         try:
-            res = self.safe_get_request(url)
+            res = requests.get(url, proxies={})
             data1 = pd.DataFrame(json.loads(res.text)['result']['data'])
             if len(data1)==0:
                 return pd.DataFrame()
@@ -113,7 +135,8 @@ class mytdxData(object):
                 data1.rename(columns={'EX_DIVIDEND_DATE':'date','SECURITY_CODE':'code','REPORT_TYPE':'type','PLAN_EXPLAIN':'deal'}, inplace=True)
                 data1 = data1[data1['type'].str.contains('分配')]
                 data1['date'] = data1['date'].apply(lambda x: x.replace('/','-'))
-                data1['deal'] = data1['deal'].apply(lambda x: float(re.findall(r'\d+\.\d+(?=[^.\d]*$)',x)[-1]))
+                # data1['deal'] = data1['deal'].apply(lambda x: float(re.findall(r'\d+\.\d+(?=[^.\d]*$)',x)[-1]))
+                data1['deal'] = data1['deal'].apply(lambda x: float(re.findall(r'(\d+\.?\d*)', x)[-1]))
                 return data1
         except:
             return pd.DataFrame()
@@ -382,6 +405,8 @@ class mytdxData(object):
             data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
         elif mkt in [0,1,2] and isIndex==True:
             data = pd.DataFrame(self.api.get_history_minute_time_data(mkt, code, day))
+        elif mkt in [68] and isIndex==False:
+            data = pd.DataFrame(self.Exapi.get_history_minute_time_data(mkt,code,day))
         else:
             data = pd.DataFrame()
         return data
@@ -406,14 +431,179 @@ class mytdxData(object):
         df.reset_index(drop=True, inplace=True)
         return df
 
+    def  get_transaction_data(self, code, backset=0, qty=200, dateint=0):
+
+        # 参数：市场代码， 股票代码，起始位置， 数量
+        # 如： 0, 000001, 0, 10
+        # api.get_transaction_data(TDXParams.MARKET_SZ, '000001', 0, 30)
+
+        # 参数：市场代码， 股票代码，起始位置，日期
+        # 数量
+        # 如： 0, 000001, 0, 10, 20170209
+        # api.get_history_transaction_data(TDXParams.MARKET_SZ, '000001', 0, 10, 20170209)
+
+        mkt,code,fuquan,isIndex = self.get_market_code(code)
+
+        if dateint!=0:
+            if qty <= 1800:
+                df = pd.DataFrame(self.api.get_history_transaction_data(mkt, code, backset, qty, dateint))
+            else:
+                df = pd.DataFrame()
+                for i in range(qty // 1800):
+                    temp = pd.DataFrame(self.api.get_history_transaction_data(mkt, code, 1800*i+backset, 1800, dateint))
+                    df = pd.concat([temp, df])
+                temp = pd.DataFrame(self.api.get_history_transaction_data(mkt, code, 1800*(qty//1800)+backset, qty%1800, dateint))
+                df = pd.concat([temp, df])
+        else:
+            if qty <= 1800:
+                df = pd.DataFrame(self.api.get_transaction_data(mkt, code, backset, qty))
+            else:
+                df = pd.DataFrame()
+                for i in range(qty // 1800):
+                    temp = pd.DataFrame(self.api.get_transaction_data(mkt, code, 1800*i+backset, 1800))
+                    df = pd.concat([temp, df])
+                temp = pd.DataFrame(self.api.get_transaction_data(mkt, code, 1800*(qty//1800)+backset, qty%1800))
+                df = pd.concat([temp, df])
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    def get_close_list(self, stklist,backtest=0):
+        result = pd.DataFrame()
+
+        for stk in stklist:
+            tmp = self.fuquan202409(stk, backtest, qty=2, period=9)
+            if len(tmp)==0:
+                continue
+            result = result.append({'code': stk, 'close': tmp['close'].values[-1]}, ignore_index=True)
+
+        return result
+
+    def speed_test_host(self, host_info, api_type):
+        """
+        测试单个服务器的响应时间
+        """
+        name, ip, port = host_info[:3]
+        api = TdxHq_API() if api_type == 'HQ' else TdxExHq_API()
+
+        try:
+            start_time = time.time()
+            is_connect = api.connect(ip, port)
+            connect_time = time.time() - start_time
+
+            if is_connect:
+                # 尝试获取简单数据以测试响应速度
+                if api_type == 'HQ':
+                    api.get_security_count(0)  # 获取市场证券数量
+                else:
+                    api.get_instrument_count()  # 获取合约数量
+                response_time = time.time() - start_time
+                api.close()
+                return (name, ip, port, response_time)
+            else:
+                api.close()
+                return (name, ip, port, float('inf'))
+        except Exception as e:
+            if 'api' in locals():
+                api.close()
+            return (name, ip, port, float('inf'))
+
+    def speed_test_hosts(self, hosts, api_type, max_workers=5):
+        """
+        并行测试所有服务器速度并排序
+        """
+        print(f"Testing {api_type} servers speed...")
+        results = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有测试任务
+            future_to_host = {
+                executor.submit(self.speed_test_host, host, api_type): host
+                for host in hosts
+            }
+
+            # 收集测试结果
+            for future in as_completed(future_to_host):
+                result = future.result()
+                results.append(result)
+
+        # 按响应时间排序，过滤掉连接失败的服务器
+        results = [r for r in results if r[3] != float('inf')]
+        results.sort(key=lambda x: x[3])
+
+        # 输出测速结果
+        print(f"\n{api_type} servers speed test results:")
+        for i, (name, ip, port, response_time) in enumerate(results):
+            if response_time == float('inf'):
+                print(f"  {i + 1}. {name} ({ip}:{port}) - Connection failed")
+            else:
+                print(f"  {i + 1}. {name} ({ip}:{port}) - {response_time:.3f}s")
+
+        return results
+
+    def reconnect(self):
+        """
+        重写重连方法，加入测速功能
+        """
+        self.close()  # 关闭当前连接
+
+        api = TdxHq_API(heartbeat=True)
+        Exapi = TdxExHq_API(heartbeat=True)
+        api_connected = False
+        Exapi_connected = False
+
+        # 测速并排序HQ服务器
+        sorted_hq_hosts = self.speed_test_hosts(self.hq_hosts, 'HQ')
+        for i in range(len(sorted_hq_hosts)):
+            name = sorted_hq_hosts[i][0]
+            ip = sorted_hq_hosts[i][1]
+            port = sorted_hq_hosts[i][2]
+            if self.TestConnection(api, 'HQ', ip, port) == False:
+                continue
+            else:
+                api_connected = True
+                print(f'reconnection to HQ server[{i}]!{name}{ip} (response time: {sorted_hq_hosts[i][3]:.3f}s)')
+                break
+        if not api_connected:
+            print('All HQ server Failed!!!')
+
+        # 测速并排序ExHQ服务器
+        sorted_exhq_hosts = self.speed_test_hosts(self.Exhq_hosts, 'ExHQ')
+        for i in range(len(sorted_exhq_hosts)):
+            name = sorted_exhq_hosts[i][0]
+            ip = sorted_exhq_hosts[i][1]
+            port = sorted_exhq_hosts[i][2]
+            if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:
+                continue
+            else:
+                Exapi_connected = True
+                print(f'reconnection to ExHQ server[{i}]!{name}{ip} (response time: {sorted_exhq_hosts[i][3]:.3f}s)')
+                break
+        if not Exapi_connected:
+            print('All ExHQ server Failed!!!')
+
+        self.api = api
+        self.Exapi = Exapi
 
 if __name__ == '__main__':
-    tdx =mytdxData()
-
-    df1 = tdx.get_kline_data('000001', backset=0, klines=200, period=9)
-    df2 = tdx.get_kline_data('601318', backset=0, klines=200, period=8)
-    df3 = tdx.get_kline_data('00700', backset=0, klines=200, period=9)
 
 
+    tdx_hosts = [('招商深圳云', '39.108.28.83', 7709), ('招商深圳云2', '109.244.69.145', 7709),
+     ('招商北京云', '39.105.251.234', 7709), ('招商北京云2', '120.53.204.206', 7709),
+     ('招商北京云3', '109.244.7.166', 7709), ('招商广州云', '111.230.189.225', 7709),
+     ('招商广州云2', '106.53.111.126', 7709), ('招商上海云', '47.100.132.162', 7709),
+     ('招商上海云2', '43.145.21.43', 7709), ('招商教育网', '116.57.224.5', 7709),
+     ('招商深圳电信', '183.62.101.52', 7709), ('招商深圳联通', '58.251.16.180', 7709)]
+    tdx_exhosts = [('招商深圳云1', '39.108.28.120', 7727), ('招商广州云', '134.175.214.53', 7727),
+     ('招商北京云', '182.92.255.107', 7727), ('招商北京云2', '140.143.179.226', 7727),
+     ('招商上海云', '47.100.132.106', 7727), ('招商上海云2', '212.64.116.126', 7727)]
+
+
+    mytdx =mytdxData(tdx_hosts, tdx_exhosts)
+
+    ttt = mytdx.get_close_list(['10008885','510300','510500'])
+    df1 = mytdx.get_kline_data('000001', backset=0, klines=200, period=9)
+
+    mytdx.reconnect()
+    mytdx.close()
 
     print('test done!')

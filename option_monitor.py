@@ -81,7 +81,7 @@ class OptionMonitor:
 
     def restart_connection(self):
         try:
-            self.tdx_data.close()
+            self.tdx_data.reconnect()
         finally:
-            self.tdx_data = mytdxData(self.config['tdx_hosts'], self.config['tdx_exhosts'])
-            time.sleep(10)
+            # self.tdx_data = mytdxData(self.config['tdx_hosts'], self.config['tdx_exhosts'])
+            time.sleep(5)
