@@ -93,7 +93,7 @@ class MarketPlotter:
         axes[0][0].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
         axes[0][0].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
 
-        ax0e.legend(loc='upper left', framealpha=0.1)
+        # ax0e.legend(loc='upper left', framealpha=0.1)
 
         keylist = list(self.etf_dict.keys())
         funcx0 = lambda x, pos: "{:.3f}\n{:.1f}%".format(x, (x / df_plot[('preclose', keylist[0])].values[1] - 1) * 100)
@@ -109,7 +109,7 @@ class MarketPlotter:
         axes[0][1].minorticks_on()
         axes[0][1].grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
         axes[0][1].grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-        axes[0][1].legend(loc='upper right', framealpha=0.1)
+        axes[0][1].legend(loc='upper left', framealpha=0.1)
         axes[0][1].text(0.5, 1.02, f'成交量(绿线):{etf_fetcher.dp_amount:.0f}亿  上涨家数:{etf_fetcher.zdjs:.0f}',
                         horizontalalignment='center', transform=axes[0][1].transAxes, fontsize=12, fontweight='bold',
                         color='black')
@@ -119,7 +119,7 @@ class MarketPlotter:
         # ax0b.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
         ax0b1.plot(df_plot.index, df_plot.amttrend, label='成交量', color='green', lw=1.5, alpha=0.5)
         # ax0b.set_yticks([])
-        axes[0][1].legend(loc='upper left', framealpha=0.1)
+        # axes[0][1].legend(loc='upper left', framealpha=0.1)
         ax0b1.legend(loc='upper right', framealpha=0.1)
 
         # 第二行：两个子图 (1, 0) 和 (1, 1)
@@ -175,7 +175,7 @@ class MarketPlotter:
             x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
             # x.legend(loc='upper left', framealpha=0.1)
-            x3.legend(loc='lower left', framealpha=0.1)
+            # x3.legend(loc='lower left', framealpha=0.1)
 
             x.minorticks_on()
             x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
