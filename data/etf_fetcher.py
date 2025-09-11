@@ -299,11 +299,13 @@ class ETFDataFetcher:
             df_single.loc[(df_single['bossflag']==1) & (df_single['bossflag'].shift(1)==-1), 'bosssigup'] = df_single['close']
             df_single.loc[(df_single['bossflag']==-1) & (df_single['bossflag'].shift(1)==1), 'bosssigdw'] = df_single['close']
 
-            df_single['sig'] = df_single[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
-            df_single['sig'] = df_single.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
-            df_single['sig'] = df_single['sig'].ffill()
-            df_single['up'] = df_single.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
-            df_single['dw'] = df_single.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+            # df_single['sig'] = df_single[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
+            # df_single['sig'] = df_single.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
+            # df_single['sig'] = df_single['sig'].ffill()
+            # df_single['up'] = df_single.apply(lambda x: 0 if x.close > x.sig else np.nan, axis=1)
+            # df_single['dw'] = df_single.apply(lambda x: 0 if x.close < x.sig else np.nan, axis=1)
+            df_single['up'] = df_single.apply(lambda x: 1 if x.ccbm20up==0 and x.cm20up==1 else np.nan, axis=1)
+            df_single['dw'] = df_single.apply(lambda x: 1 if x.ccbm20up==1 and x.cm20up==0 else np.nan, axis=1)
 
 
             df_single['etf'] = k
@@ -398,8 +400,8 @@ class ETFDataFetcher:
         self.dp_amount = dp_amount
         df_temp['dpamtcum'] = df_temp['allamt'].cumsum()
         df_temp['dpbosspct'] = df_temp['boss']/df_temp['dpamtcum']*100
-        dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
-        dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
+        # dp_amtcum = df_temp['dpamtcum'].ffill().values[-1] / 100000000
+        # dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
         df_temp['sig'] = df_temp[['pivotup', 'pivotdw', 'crossup', 'crossdw']].notnull().any(axis=1)
         df_temp['sig'] = df_temp.apply(lambda x: np.nan if x.sig == False else x.close, axis=1)
         df_temp['sig'] = df_temp['sig'].ffill()
@@ -412,4 +414,4 @@ class ETFDataFetcher:
         self.dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
         self.data = df_temp
 
-        return df_temp
+        return #df_temp

@@ -128,10 +128,6 @@ class MarketPlotter:
                 x = axes[1][0]
             elif i == 1:
                 x = axes[1][1]
-            elif i == 2:
-                x = axes[2][0]
-            elif i == 3:
-                x = axes[2][1]
             else:
                 continue
 
@@ -189,68 +185,68 @@ class MarketPlotter:
             x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%  CCB涨跌:{etf_fetcher.ccb_pctChg[k]*100:.2f}%_百分位:{ccb_percentile:.0f}%',
                    horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
-        # # 第三行：两个子图 (2, 0) 和 (2, 1)
-        # for i, k in enumerate(self.etf_dict.keys()):
-        #     if i == 2:
-        #         x = axes[2][0]
-        #     elif i == 3:
-        #         x = axes[2][1]
-        #     else:
-        #         continue
-        #
-        #     lastclose = df_plot[('preclose', k)].values[1]
-        #     pct = df_plot[('close', k)].dropna().values[-1] / lastclose * 100 - 100
-        #
-        #     x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
-        #     x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
-        #     x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red',
-        #            alpha=1.)
-        #     x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
-        #     x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='o', s=9, c='red', alpha=0.5)
-        #     x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='o', s=9, c='green', alpha=0.7)
-        #
-        #     x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2 if i == 2 else funcx3))
-        #
-        #     x3 = x.twinx()
-        #     x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7,
-        #                zorder=-10)
-        #     x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7,
-        #                zorder=-10)
-        #     x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
-        #     x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
-        #     x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
-        #     x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
-        #     x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, zorder=-25)
-        #     x3.set_ylim(-10, 10)
-        #     x3.set_yticks([])
-        #
-        #     x4 = x.twinx()
-        #     x4.plot(df_plot.index, df_plot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
-        #     x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.9, linestyle='--', color='green')
-        #     x4.set_yticks([])
-        #
-        #     x5 = x.twinx()
-        #     x5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
-        #     x5.set_yticks([])
-        #
-        #     x6 = x.twinx()
-        #     x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
-        #     x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
-        #
-        #     # x.legend(loc='upper left', framealpha=0.1)
-        #     x3.legend(loc='lower left', framealpha=0.1)
-        #
-        #     x.minorticks_on()
-        #     x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
-        #     x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
-        #
-        #     if k in png_dict.keys():
-        #         x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
-        #                fontweight='bold', color='black')
-        #     ccb_key = f"{k}_CP"
-        #     ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
-        #     x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%   CCB涨跌:{etf_fetcher.ccb_pctChg[k]*100:.1f}%_百分位:{ccb_percentile:.0f}%',
-        #            horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
+        # 第三行：两个子图 (2, 0) 和 (2, 1)
+        for i, k in enumerate(self.etf_dict.keys()):
+            if i == 2:
+                x = axes[2][0]
+            elif i == 3:
+                x = axes[2][1]
+            else:
+                continue
+
+            lastclose = df_plot[('preclose', k)].values[1]
+            pct = df_plot[('close', k)].dropna().values[-1] / lastclose * 100 - 100
+
+            x.hlines(y=lastclose, xmin=df_plot.index.min(), xmax=maxx, colors='aqua', linestyles='-', lw=2)
+            x.plot(df_plot.index, df_plot[('close', k)], linewidth=1, linestyle='-', color='red', alpha=1.)
+            x.plot(df_plot.index, df_plot[('cm20', k)], label='ma20', linewidth=0.7, linestyle='--', color='red',
+                   alpha=1.)
+            x.plot(df_plot.index, df_plot[f'avg_{k}'], linewidth=1, color='violet')
+            x.scatter(df_plot.index, df_plot[f'c_enterlong_{k}'], marker='o', s=9, c='red', alpha=0.5)
+            x.scatter(df_plot.index, df_plot[f'c_entershort_{k}'], marker='o', s=9, c='green', alpha=0.7)
+
+            x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx2 if i == 2 else funcx3))
+
+            x3 = x.twinx()
+            x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7,
+                       zorder=-10)
+            x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7,
+                       zorder=-10)
+            x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
+            x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+            x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
+            x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
+            x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, zorder=-25)
+            x3.set_ylim(-10, 10)
+            x3.set_yticks([])
+
+            x4 = x.twinx()
+            x4.plot(df_plot.index, df_plot[('ccb', k)], linewidth=0.9, linestyle='-', color='green')
+            x4.plot(df_plot.index, df_plot[('ccbm20', k)], linewidth=0.9, linestyle='--', color='green')
+            x4.set_yticks([])
+
+            x5 = x.twinx()
+            x5.bar(df_plot.index, df_plot[('volume', k)], color='gray', alpha=0.3, zorder=-15)
+            x5.set_yticks([])
+
+            x6 = x.twinx()
+            x6.plot(df_plot.index, df_plot[('boss', k)], linewidth=0.8, linestyle='-', color='blue')
+            x6.plot(df_plot.index, df_plot[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
+
+            # x.legend(loc='upper left', framealpha=0.1)
+            x3.legend(loc='lower left', framealpha=0.1)
+
+            x.minorticks_on()
+            x.grid(which='major', axis="both", color='k', linestyle='--', linewidth=0.3)
+            x.grid(which='minor', axis="x", color='k', linestyle='dotted', linewidth=0.15)
+
+            if k in png_dict.keys():
+                x.text(0.5, 1.03, png_dict[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
+                       fontweight='bold', color='black')
+            ccb_key = f"{k}_CP"
+            ccb_percentile = etf_fetcher.ccb_range[ccb_key] * 100
+            x.text(0.5, 0.94, f'{k} 涨跌:{pct:.2f}%   CCB涨跌:{etf_fetcher.ccb_pctChg[k]*100:.1f}%_百分位:{ccb_percentile:.0f}%',
+                   horizontalalignment='center', transform=x.transAxes, fontsize=12, fontweight='bold', color='black')
 
         plt.tight_layout()
         plt.savefig(f'output\\持续监控全景_v3.0_{datetime.now().strftime("%Y%m%d")}.png')
@@ -354,11 +350,6 @@ class MarketPlotter:
             x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
             x2.plot(df_opt.index, df_opt[('bossm10', k)], color='blue', linestyle='--', linewidth=0.5, alpha=1)
             x2.set_yticks([])
-
-            x3 = x.twinx()
-            x3.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
-            x3.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
-
 
             if k in png_dict.keys():
                 x.text(0.5, 1.02, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,

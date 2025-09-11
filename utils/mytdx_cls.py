@@ -31,7 +31,7 @@ exhost_6 = 招商上海云2,212.64.116.126, 7727
 
 class mytdxData(object):
 
-    def __init__(self, hq_hosts, Exhq_hosts):
+    def __init__(self, hq_hosts, Exhq_hosts, speed_test=False):
         api = TdxHq_API(heartbeat=True)
         Exapi = TdxExHq_API(heartbeat=True)
         api_connected = False
@@ -39,35 +39,77 @@ class mytdxData(object):
         self.hq_hosts = hq_hosts
         self.Exhq_hosts = Exhq_hosts
 
-        # 测速并排序HQ服务器
-        sorted_hq_hosts = self.speed_test_hosts(hq_hosts, 'HQ')
-        for i in range(len(sorted_hq_hosts)):
-            name = sorted_hq_hosts[i][0]
-            ip = sorted_hq_hosts[i][1]
-            port = sorted_hq_hosts[i][2]
-            if self.TestConnection(api, 'HQ', ip, port) == False:
-                continue
+        if speed_test==False:
+            api = TdxHq_API(heartbeat=True)
+            apilist = pd.DataFrame(hq_hosts)
+            apilist.columns = ['name', 'ip', 'port']
+            if self.TestConnection(api, 'HQ', apilist['ip'].values[0], apilist['port'].values[0]) == False:  # or \
+                if self.TestConnection(api, 'HQ', apilist['ip'].values[1], apilist['port'].values[1]) == False:  # or \
+                    if self.TestConnection(api, 'HQ', apilist['ip'].values[2],
+                                           apilist['port'].values[2]) == False:  # or \
+                        if self.TestConnection(api, 'HQ', apilist['ip'].values[3],
+                                               apilist['port'].values[3]) == False:  # or \
+                            print('All HQ server Failed!!!')
+                        else:
+                            print(f'connection to HQ server[3]!{apilist["name"].values[3]}')
+                    else:
+                        print(f'connection to HQ server[2]!{apilist["name"].values[2]}')
+                else:
+                    print(f'connection to HQ server[1]!{apilist["name"].values[1]}')
             else:
-                api_connected = True
-                print(f'connection to HQ server[{i}]!{name}{ip} (response time: {sorted_hq_hosts[i][3]:.3f}s)')
-                break
-        if api_connected == False:
-            print('All HQ server Failed!!!')
+                print(f'connection to HQ server[0]!{apilist["name"].values[0]}')
 
-        # 测速并排序ExHQ服务器
-        sorted_exhq_hosts = self.speed_test_hosts(Exhq_hosts, 'ExHQ')
-        for i in range(len(sorted_exhq_hosts)):
-            name = sorted_exhq_hosts[i][0]
-            ip = sorted_exhq_hosts[i][1]
-            port = sorted_exhq_hosts[i][2]
-            if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:
-                continue
+            Exapi = TdxExHq_API(heartbeat=True)
+            exapilist = pd.DataFrame(Exhq_hosts)
+            exapilist.columns = ['name', 'ip', 'port']
+            if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[0],
+                                   exapilist['port'].values[0]) == False:  # or \
+                if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[1],
+                                       exapilist['port'].values[1]) == False:  # or \
+                    if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[2],
+                                           exapilist['port'].values[2]) == False:  # or \
+                        if self.TestConnection(Exapi, 'ExHQ', exapilist['ip'].values[3],
+                                               exapilist['port'].values[3]) == False:  # or \
+                            print('All ExHQ server Failed!!!')
+                        else:
+                            print(f'connection to ExHQ server[3]!{exapilist["name"].values[3]}')
+                    else:
+                        print(f'connection to ExHQ server[2]!{exapilist["name"].values[2]}')
+                else:
+                    print(f'connection to ExHQ server[1]!{exapilist["name"].values[1]}')
             else:
-                Exapi_connected = True
-                print(f'connection to ExHQ server[{i}]!{name}{ip} (response time: {sorted_exhq_hosts[i][3]:.3f}s)')
-                break
-        if Exapi_connected == False:
-            print('All ExHQ server Failed!!!')
+                print(f'connection to ExHQ server[0]!{exapilist["name"].values[0]}')
+
+        else:
+            # 测速并排序HQ服务器
+            sorted_hq_hosts = self.speed_test_hosts(hq_hosts, 'HQ')
+            for i in range(len(sorted_hq_hosts)):
+                name = sorted_hq_hosts[i][0]
+                ip = sorted_hq_hosts[i][1]
+                port = sorted_hq_hosts[i][2]
+                if self.TestConnection(api, 'HQ', ip, port) == False:
+                    continue
+                else:
+                    api_connected = True
+                    print(f'connection to HQ server[{i}]!{name}{ip} (response time: {sorted_hq_hosts[i][3]:.3f}s)')
+                    break
+            if api_connected == False:
+                print('All HQ server Failed!!!')
+
+            # 测速并排序ExHQ服务器
+            sorted_exhq_hosts = self.speed_test_hosts(Exhq_hosts, 'ExHQ')
+            for i in range(len(sorted_exhq_hosts)):
+                name = sorted_exhq_hosts[i][0]
+                ip = sorted_exhq_hosts[i][1]
+                port = sorted_exhq_hosts[i][2]
+                if self.TestConnection(Exapi, 'ExHQ', ip, port) == False:
+                    continue
+                else:
+                    Exapi_connected = True
+                    print(f'connection to ExHQ server[{i}]!{name}{ip} (response time: {sorted_exhq_hosts[i][3]:.3f}s)')
+                    break
+            if Exapi_connected == False:
+                print('All ExHQ server Failed!!!')
 
         self.api = api
         self.Exapi = Exapi
