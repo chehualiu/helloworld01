@@ -70,10 +70,10 @@ class MarketPlotter:
         ax0d.plot(df_plot.index, df_plot.boss, label='主力资金', color='blue', linewidth=1, alpha=1)
         ax0d.plot(df_plot.index, df_plot.bossm10, color='blue', linestyle='--', linewidth=0.5, alpha=1)
 
-        ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
-        ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
-        ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=16, c='red', alpha=0.6)
-        ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=16, c='green', alpha=0.7)
+        # ax0e.scatter(df_plot.index, df_plot['pivotup'], label='转折点', marker='^', s=49, c='red', alpha=0.6)
+        # ax0e.scatter(df_plot.index, df_plot['pivotdw'], label='转折点', marker='v', s=49, c='green', alpha=0.7)
+        # ax0e.scatter(df_plot.index, df_plot['crossup'], label='底部涨', marker='D', s=16, c='red', alpha=0.6)
+        # ax0e.scatter(df_plot.index, df_plot['crossdw'], label='顶部跌', marker='D', s=16, c='green', alpha=0.7)
         ax0e.scatter(df_plot.index, df_plot['up'], marker='s', s=9, c='red', alpha=0.3)
         ax0e.scatter(df_plot.index, df_plot['dw'], marker='s', s=9, c='green', alpha=0.3)
 
@@ -149,12 +149,12 @@ class MarketPlotter:
             x.yaxis.set_major_formatter(mtick.FuncFormatter(funcx0 if i == 0 else funcx1))
 
             x3 = x.twinx()
-            x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7,
-                       zorder=-10)
-            x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7,
-                       zorder=-10)
-            x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
-            x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
+            # x3.scatter(df_plot.index, df_plot[('pivotup', k)], label='转折点', s=25, c='r', marker='^', alpha=0.7,
+            #            zorder=-10)
+            # x3.scatter(df_plot.index, df_plot[('pivotdw', k)], label='转折点', s=25, c='g', marker='v', alpha=0.7,
+            #            zorder=-10)
+            # x3.scatter(df_plot.index, df_plot[('crossup', k)], s=16, c='r', marker='D', alpha=0.6, zorder=-10)
+            # x3.scatter(df_plot.index, df_plot[('crossdw', k)], s=16, c='g', marker='D', alpha=0.7, zorder=-10)
             x3.scatter(df_plot.index, df_plot[('up', k)], marker='s', s=9, c='red', alpha=0.3)
             x3.scatter(df_plot.index, df_plot[('dw', k)], marker='s', s=9, c='green', alpha=0.3)
             x3.hlines(0, xmin=df_plot.index.min(), xmax=maxx, color='k', linewidth=0.5, alpha=0.6, zorder=-25)
