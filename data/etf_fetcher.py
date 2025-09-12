@@ -414,4 +414,4 @@ class ETFDataFetcher:
         self.dp_bosspct = df_temp['dpbosspct'].ffill().values[-1]
         self.data = df_temp
 
-        return #df_temp
+        return df_temp
