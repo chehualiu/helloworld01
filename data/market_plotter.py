@@ -329,10 +329,10 @@ class MarketPlotter:
             x.plot(df_opt.index, df_opt[('longm20', k)], linewidth=0.6, linestyle='--', color='red')
             x.hlines(y=df_opt[('long', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx,
                      colors='red', lw=1, alpha=0.5, zorder=-20)
-            x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
-            x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('Long_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('Long_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('Long_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+            # x.scatter(df_opt.index, df_opt[('Long_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5, zorder=-10)
             # x.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
             # x.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
             x.scatter(df_opt.index, df_opt[('enterlong', k)], marker='o', s=9, color='red', alpha=0.5, zorder=-10)
@@ -344,11 +344,11 @@ class MarketPlotter:
             x1.plot(df_opt.index, df_opt[('shortm20', k)], linewidth=0.6, linestyle='--', color='green')
             x1.hlines(y=df_opt[('short', k)].dropna().iloc[0], xmin=df_opt.index.min(), linestyle='--', xmax=maxx,
                       colors='green', lw=1, alpha=0.5, zorder=-20)
-            x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
-            x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5,
-                       zorder=-10)
+            # x1.scatter(df_opt.index, df_opt[('Short_crossup', k)], marker='o', s=16, color='red', alpha=0.5, zorder=-10)
+            # x1.scatter(df_opt.index, df_opt[('Short_crossdw', k)], marker='o', s=16, color='green', alpha=0.5, zorder=-10)
+            # x1.scatter(df_opt.index, df_opt[('Short_pivotup', k)], marker='^', s=16, color='red', alpha=0.5, zorder=-10)
+            # x1.scatter(df_opt.index, df_opt[('Short_pivotdw', k)], marker='v', s=16, color='green', alpha=0.5,
+            #            zorder=-10)
 
             x2 = x.twinx()
             x2.plot(df_opt.index, df_opt[('boss', k)], label='主力资金', color='blue', linewidth=0.7, alpha=1)
@@ -358,7 +358,12 @@ class MarketPlotter:
             x3 = x.twinx()
             x3.scatter(df_opt.index, df_opt[('up', k)], marker='s', s=9, color='red', alpha=0.3, zorder=-10)
             x3.scatter(df_opt.index, df_opt[('dw', k)], marker='s', s=9, color='green', alpha=0.3, zorder=-10)
-
+            x3.scatter(df_opt[df_opt[('Long_crossup', k)]>0].index, [1.1]*len(df_opt[df_opt[('Long_crossup', k)]>0]), marker='^', s=36, color='red', alpha=0.5, zorder=-10)
+            x3.scatter(df_opt[df_opt[('Long_crossdw', k)]>0].index, [1.1]*len(df_opt[df_opt[('Long_crossdw', k)]>0]), marker='v', s=36, color='green', alpha=0.5, zorder=-10)
+            x3.scatter(df_opt[df_opt[('Short_pivotup', k)]>0].index, [0.9]*len(df_opt[df_opt[('Short_pivotup', k)]>0]), marker='v', s=36, color='green', alpha=0.5, zorder=-10)
+            x3.scatter(df_opt[df_opt[('Short_pivotdw', k)]>0].index, [0.9]*len(df_opt[df_opt[('Short_pivotdw', k)]>0]), marker='^', s=36, color='red', alpha=0.5, zorder=-10)
+            x3.set_ylim(-1, 3.0)
+            x3.set_yticks([])
 
             if k in png_dict.keys():
                 x.text(0.5, 1.02, new_optlist[k], horizontalalignment='center', transform=x.transAxes, fontsize=12,
