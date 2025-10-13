@@ -13,7 +13,7 @@ class OptionMonitor:
         self.config = load_config(config_file)
         hosts = self.config['tdx_hosts']
         ex_hosts = self.config['tdx_exhosts']
-        self.tdx_data = mytdxData(hosts, ex_hosts)
+        self.tdx_data = mytdxData(hosts, ex_hosts, speed_test=True)
         self.options_fetcher = OptionsDataFetcher(self.tdx_data, self.config['etf_dict'], self.config['etf_dict2'], self.config['path']['opt_path'])
         self.etf_fetcher = ETFDataFetcher(self.tdx_data, self.config['etf_dict2'], self.config['etf_ccb_dict'], self.config['etfbk_dict'])
         self.plotter = MarketPlotter(self.config['etf_dict'])
