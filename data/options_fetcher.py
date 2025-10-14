@@ -227,15 +227,13 @@ class OptionsDataFetcher:
             else:
                 tmpstr = '认购:' + call['code'].values[0] + '_' + call['name'].values[0] + '_' + str(
                     call['close'].values[0]) + ' =itm' + str(int(call['itm'].values[0] * 10000)) + '+' + str(
-                    int(call['otm'].values[0] * 10000)) + \
-                         ' 杠杆:' + str(int(call['实际杠杆'].values[0]))
+                    int(call['otm'].values[0] * 10000))
             if len(put) == 0:
                 tmpstr += f'\n{key}认沽:流动性过滤为空'
             else:
                 tmpstr += '\n认沽:' + put['code'].values[0] + '_' + put['name'].values[0] + '_' + str(
                     put['close'].values[0]) + ' =itm' + str(int(put['itm'].values[0] * 10000)) + '+' + str(
-                    int(put['otm'].values[0] * 10000)) + \
-                          ' 杠杆:' + str(int(put['实际杠杆'].values[0]))
+                    int(put['otm'].values[0] * 10000))
 
             png_dict[key] = tmpstr
 

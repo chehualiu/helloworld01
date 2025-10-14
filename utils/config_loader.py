@@ -37,7 +37,9 @@ def load_config(config_file='monitor_v2.8.cfg'):
             (name.strip(), ip.strip(), int(port.strip()))
             for key in config['tdx_exhosts']
             for name, ip, port in [config['tdx_exhosts'][key].split(',')]
-        ]
+        ],
+        'trade_start':dict(config.items('trade_time'))['start'],
+        'trade_end': dict(config.items('trade_time'))['end']
     }
 
     return parsed

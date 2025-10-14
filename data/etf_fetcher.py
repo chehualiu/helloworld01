@@ -346,6 +346,7 @@ class ETFDataFetcher:
         df_etf1min.reset_index(drop=False, inplace=True)
         df_etf1min['datetime'] = df_etf1min['datetime'].apply(lambda x: x.replace('13:00','11:30'))
 
+        # 涨跌家数
         df_zdjs = self.tdx_data.get_kline_data('880005', backset=0, klines=300, period=8)
         df_zdjs.rename(columns={'close': 'zdjs'}, inplace=True)
         tmp = df_zdjs[df_zdjs['datetime'].str.contains('15:00')]

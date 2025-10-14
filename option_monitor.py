@@ -9,10 +9,12 @@ from utils.mytdx_cls import mytdxData
 
 
 class OptionMonitor:
-    def __init__(self, config_file='monitor_v2.8.cfg'):
+    def __init__(self, config_file='monitor_v3.0.cfg'):
         self.config = load_config(config_file)
         hosts = self.config['tdx_hosts']
         ex_hosts = self.config['tdx_exhosts']
+        self.trade_start = self.config['trade_start']
+        self.trade_end = self.config['trade_end']
         self.tdx_data = mytdxData(hosts, ex_hosts, speed_test=True)
         self.options_fetcher = OptionsDataFetcher(self.tdx_data, self.config['etf_dict'], self.config['etf_dict2'], self.config['path']['opt_path'])
         self.etf_fetcher = ETFDataFetcher(self.tdx_data, self.config['etf_dict2'], self.config['etf_ccb_dict'], self.config['etfbk_dict'])
@@ -22,7 +24,7 @@ class OptionMonitor:
 
     def is_trading_time(self):
         now = time.strftime("%H%M", time.localtime())
-        return '0910' <= now <= '1502'
+        return self.trade_start <= now <= self.trade_end
 
     def is_pre_market(self):
         now = time.strftime("%H%M", time.localtime())
