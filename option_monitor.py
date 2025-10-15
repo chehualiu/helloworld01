@@ -20,6 +20,7 @@ class OptionMonitor:
         self.etf_fetcher = ETFDataFetcher(self.tdx_data, self.config['etf_dict2'], self.config['etf_ccb_dict'], self.config['etfbk_dict'])
         self.plotter = MarketPlotter(self.config['etf_dict'])
         self.sleepsec = self.config['sleep_seconds']
+        self.cookie = self.config['cookie']
         self.data = pd.DataFrame()
 
     def is_trading_time(self):
@@ -43,7 +44,7 @@ class OptionMonitor:
                 time.sleep(self.sleepsec*2)
             else:
                 try:
-                    png_dict, df_optlist = self.options_fetcher.get_my_options(self.config['option_screen'])
+                    png_dict, df_optlist = self.options_fetcher.get_my_options(self.config['option_screen'], cookie=self.cookie)
                     # 校验完整性
                     valid = all('流动性' not in v for v in png_dict.values())
                     if not valid:

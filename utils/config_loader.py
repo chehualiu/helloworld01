@@ -7,7 +7,7 @@ def load_config(config_file='monitor_v2.8.cfg'):
     if not os.path.exists(config_file):
         raise FileNotFoundError(f"Config file {config_file} not found.")
 
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(interpolation=None)
     config.read(config_file, encoding='utf-8')
 
     def _parse_dict(section):
@@ -39,7 +39,10 @@ def load_config(config_file='monitor_v2.8.cfg'):
             for name, ip, port in [config['tdx_exhosts'][key].split(',')]
         ],
         'trade_start':dict(config.items('trade_time'))['start'],
-        'trade_end': dict(config.items('trade_time'))['end']
+        'trade_end': dict(config.items('trade_time'))['end'],
+        'bkzjlx_url': dict(config.items('em_urls'))['bkzjlx'],
+        'emzjlx_frequency': int(dict(config.items('em_urls'))['emzjlx_frequency']),
+        'cookie': dict(config.items('em_urls'))['cookie']
     }
 
     return parsed

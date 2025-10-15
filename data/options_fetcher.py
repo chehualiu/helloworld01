@@ -73,11 +73,11 @@ class OptionsDataFetcher:
             print(f"Error in get_options_risk_data: {e}")
             return pd.DataFrame()
 
-    def get_all_options_v3(self) -> pd.DataFrame:
+    def get_all_options_v3(self,cookie=None) -> pd.DataFrame:
         header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Cookie": "qgqp_b_id=435b18200eebe2cbb5bdd3b3af2db1b1; intellpositionL=522px; intellpositionT=1399.22px; em_hq_fls=js; pgv_pvi=6852699136; st_pvi=73734391542044; st_sp=2020-07-27%2010%3A10%3A43; st_inirUrl=http%3A%2F%2Fdata.eastmoney.com%2Fhsgt%2Findex.html",
+            "Cookie": cookie if cookie is not None else "qgqp_b_id=2e5f72b5a8e430f5f578199b44b2c650; st_nvi=QTo1DhRK-9b0WLzl763GF90fb; nid=005c4e7016dc8547c46bc58c842215af; nid_create_time=1754291547115; gvi=KrcKF3koRrZAdqQD855wDc6b3; gvi_create_time=1754291547115; mtp=1; ct=cI7Lo5aNpHXvsN7fQyYXistdSwQypZ6pCRwLMoxfH0iERvj4LVcqu917dRLv7P67zYRdhnod-iTNFzaJa_kSIEtIDFUZn_1C8_NHoD_Y5RKRBCYJYOZwT5neykaLga0PXwdy35PQZGq_4CFY3lRy-_qbkh7idXA7TLSHoOJ-TPo; ut=FobyicMgeV63FIqRjcfDeRRI5bofMxGbDM6MboJ-5VcfKNE1KSeQpn0nTjA4MCb02RzK21f9bRjUYAzm70AllVVVIdtMEotGI_s9g10b0UaKP69Thj2H5QcD1ZiZSO-OEilTSeDyI7ovhg9WIMkOWNAaNzej3GSP1SsySJd2uveX0gCto16y4-lYWnQCYc7ToqxcAYY3c-nDrc7cseHQ_o8fLJc2yUu_KeKuEZfiOMyUYm0sP5ZFQPNbs-8sWRqxoZq2gmtlQV0x3BUHmu1HgVrSbeyYDla2; pi=2186316006663558%3Bu2186316006663558%3B%E8%82%A1%E5%8F%8BDOk6GW%3BYNLvxdi0J24eaLlSY08HJwyb5HP5SUwF2j7%2FqoTM2s6oi6XGG3xHh3NoXD44aZOh%2Fq%2BdgQuAKtcnwn95MBNB7pvGwFHdKbbmxLeeKSK6KPN%2Bg%2FzZz6CFR71Kdfy45FQE3JCvNVotzQnXQbfXHrjG4wMjYpLYsPktYSGL6ycrDQdESRNzfOEgfq3iunRh6Y8ZHfoh%2BXCG%3BgzA1ItCCoCphbnEKpXwGOtx2wcjvzwYLQ0gL6%2B9lwUMiY5IPkp%2BloqrpW6WGzsIscBnu8lrcdhaidpNjazeWLFjyNXpQwjzkheO9Ds8%2FuI3lwnEiMf3ay%2BffRVKbX0OmFM5iiXwsTn6iEPTV3ik2mK29yhMoeg%3D%3D; uidal=2186316006663558%e8%82%a1%e5%8f%8bDOk6GW; sid=152379750; vtpst=|; fullscreengg=1; fullscreengg2=1; st_si=15442846996330; st_asi=delete; st_pvi=99659171718134; st_sp=2020-12-25%2019%3A43%3A29; st_inirUrl=http%3A%2F%2Ffinance.eastmoney.com%2Fa%2F202002261396627810.html; st_sn=12; st_psi=20251014165507189-113300300871-4181137287",
             "Host": "push2.eastmoney.com",
         }
 
@@ -163,7 +163,7 @@ class OptionsDataFetcher:
                             on='code', how='left')
         return data
 
-    def get_my_options(self, filter_dict):
+    def get_my_options(self, filter_dict, cookie=None):
 
         # now = pd.DataFrame(api.get_index_bars(8, 1, '999999', 0, 20))
         now = self.tdx_data.get_kline_data('999999', 0, 20, 8)
@@ -188,7 +188,7 @@ class OptionsDataFetcher:
                 data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
             else:
                 try:
-                    data = self.get_all_options_v3()
+                    data = self.get_all_options_v3(cookie=cookie)
                     print(f'{datetime.now().strftime("%m%d_%H:%M:%S")} New option file')
                     data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')
                 except:
@@ -196,7 +196,7 @@ class OptionsDataFetcher:
                     data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
         else:
             print('New option file ' + opt_fn)
-            data = self.get_all_options_v3()
+            data = self.get_all_options_v3(cookie=cookie)
             data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')
 
         data.fillna(0, inplace=True)
