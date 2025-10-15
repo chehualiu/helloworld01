@@ -1,6 +1,6 @@
 # option_monitor.py
 import pandas as pd
-import time
+import time,requests
 from utils.config_loader import load_config
 from data.options_fetcher import OptionsDataFetcher
 from data.etf_fetcher import ETFDataFetcher
@@ -22,6 +22,7 @@ class OptionMonitor:
         self.sleepsec = self.config['sleep_seconds']
         self.cookie = self.config['cookie']
         self.data = pd.DataFrame()
+        self.pushurl = self.config['pushmessage']['url']
 
     def is_trading_time(self):
         now = time.strftime("%H%M", time.localtime())
@@ -50,6 +51,8 @@ class OptionMonitor:
                     if not valid:
                         print("期权未能选取完整，请检查配置")
                     tt = self.etf_fetcher.get_full_data()
+                    self.check_dp_boss(tt)
+
                     if len(tt)>0:
                         self.plotter.plot_full_day(self.etf_fetcher, png_dict)
 
@@ -71,7 +74,8 @@ class OptionMonitor:
             if not valid:
                 print("期权未能选取完整，请检查配置")
                 return
-            self.etf_fetcher.get_full_data()
+            tt = self.etf_fetcher.get_full_data()
+            self.check_dp_boss(tt)
             self.plotter.plot_full_day(self.etf_fetcher, png_dict)
             if self.config['plotimgs']['option'] == 'Y' and valid:
                 self.options_fetcher.get_option_data(png_dict, df_optlist, self.etf_fetcher.data)
@@ -88,3 +92,16 @@ class OptionMonitor:
         finally:
             # self.tdx_data = mytdxData(self.config['tdx_hosts'], self.config['tdx_exhosts'])
             time.sleep(5)
+
+    def check_dp_boss(self, dd):
+        # 主力资金上穿10分钟均线，上涨信号
+        if dd['boss'].values[-1] > dd['bossm10'].values[-1] and dd['boss'].values[-2] < \
+                dd['bossm10'].values[-2]:
+            msg = '大盘主力资金上穿10分钟均线，上涨信号'
+            msgURL = f'{self.pushurl}上涨信号&desp={msg}'
+            requests.get(msgURL)
+        elif dd['boss'].values[-1] < dd['bossm10'].values[-1] and dd['boss'].values[-2] > \
+                dd['bossm10'].values[-2]:
+            msg = '大盘主力资金下穿10分钟均线，下跌信号'
+            msgURL = f'{self.pushurl}下跌信号&desp={msg}'
+            requests.get(msgURL)

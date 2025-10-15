@@ -46,6 +46,7 @@ class MarketPlotter:
         else:
             maxx = 240
 
+        # print(plt.get_backend())  tkagg
         fig, axes = plt.subplots(3, 2, figsize=(14, 10))  # 修改为 3 行 2 列布局
 
         # 设置 x 轴刻度标签
