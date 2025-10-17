@@ -463,6 +463,10 @@ class mytdxData(object):
             df.rename(columns={'amount': '成交额'}, inplace=True)
             if 'vol' in df.columns:
                 df.rename(columns={'vol': 'volume', 'amount': '成交额'}, inplace=True)
+            elif 'trade' in df.columns:
+                df.rename(columns={'trade': 'volume'}, inplace=True)
+            else:
+                pass
             df['preclose'] = df['close'].shift(1)
             df['振幅'] = df.apply(lambda x: (x['high'] - x['low']) / x['preclose'], axis=1)
             df['涨跌幅'] = df.apply(lambda x: x['close'] / x['preclose'] - 1, axis=1)
@@ -516,8 +520,7 @@ class mytdxData(object):
             tmp = self.fuquan202409(stk, backtest, qty=2, period=9)
             if len(tmp)==0:
                 continue
-            result = result.append({'code': stk, 'close': tmp['close'].values[-1]}, ignore_index=True)
-
+            result = pd.concat([result, pd.DataFrame({'code': [stk], 'close': [tmp['close'].values[-1]]})])
         return result
 
     def speed_test_host(self, host_info, api_type):
@@ -626,9 +629,85 @@ class mytdxData(object):
         self.api = api
         self.Exapi = Exapi
 
+    def getActiveOptions(self):
+        option_sh = option_sz = pd.DataFrame()
+
+        for i in range(10):
+            tmp_sh = pd.DataFrame(self.Exapi.get_instrument_quote_list(8, 2, start=i * 100, count=100))
+            if len(tmp_sh) == 0:
+                break
+            elif len(tmp_sh) == 100:
+                option_sh = pd.concat([option_sh, tmp_sh])
+            else:
+                option_sh = pd.concat([option_sh, tmp_sh])
+                break
+        option_sh.sort_values(by='HuoYueDu', ascending=False, inplace=True)
+        option_sh = option_sh[:50]
+
+        for i in range(10):
+            tmp_sz = pd.DataFrame(self.Exapi.get_instrument_quote_list(9, 2, start=i * 100, count=100))
+            if len(tmp_sz) == 0:
+                break
+            elif len(tmp_sz) == 100:
+                option_sz = pd.concat([option_sz, tmp_sz])
+            else:
+                option_sz = pd.concat([option_sz, tmp_sz])
+                break
+        option_sz.sort_values(by='HuoYueDu', ascending=False, inplace=True)
+        option_sz = option_sz[:30]
+
+        option_list = pd.concat([option_sh, option_sz])
+        return option_list
+
+    def getTradeOptions(self, etf_list, data, closeMean=0.10):
+
+        png_dict = {}
+        etf_dict = {'科创50':'588000','沪深300':'510300','中证500':'510500','创业板50':'159915'}
+        df_active = self.getActiveOptions()
+        df_active_price = self.get_close_list(df_active['code'].tolist())
+        data = data[data['code'].isin(df_active_price['code'].tolist())]
+        for etf in etf_list:
+            etfcode = etf_dict[etf]
+            tmp = data[data['ETFcode'] == etfcode]
+            del tmp['close']
+            tmpdf = pd.merge(tmp, df_active_price, on='code', how='left')
+            tmpdf['tmpfact'] = tmpdf['close'].apply(
+                lambda x: x / closeMean if x <= closeMean else closeMean / x)
+            tmpdf['tmpfact2'] = tmpdf['tmpfact'] * tmpdf['tmpfact']  # *tmpdf['tmpfact']*tmpdf['amount']
+            tmpdf.sort_values(by='tmpfact2', ascending=False, inplace=True)
+
+            tmpdf['itm'] = tmpdf.apply(
+                lambda x: max(0, x.ETFprice - x['行权价']) if x.direction == 'call'
+                else max(0,x['行权价'] - x.ETFprice), axis=1)
+            tmpdf['otm'] = tmpdf.apply(lambda x: x.close - x.itm, axis=1)
+
+            call = tmpdf[(tmpdf['direction'] == 'call')][:1]
+            put = tmpdf[(tmpdf['direction'] == 'put')][:1]
+
+            if len(call) == 0:
+                tmpstr = f'{etf}认购:流动性过滤为空   '
+            else:
+                # tmpstr = '认购:' + call['code'].values[0] + '_' + call['name'].values[0] + '_' + str(
+                #     call['close'].values[0]) + '=itm' + str(int(call['itm'].values[0] * 10000)) + '+' + str(
+                #     int(call['otm'].values[0] * 10000))
+                tmpstr = f"认购:{call['code'].values[0]}_{call['name'].values[0]}_{call['close'].values[0]:.4f}=itm{int(call['itm'].values[0] * 10000)}+{int(call['otm'].values[0] * 10000)}"
+
+            if len(put) == 0:
+                tmpstr += f'\n{etf}认沽:流动性过滤为空'
+            else:
+                # tmpstr += '\n认沽:' + put['code'].values[0] + '_' + put['name'].values[0] + '_' + str(
+                #     put['close'].values[0]) + '=itm' + str(int(put['itm'].values[0] * 10000)) + '+' + str(
+                #     int(put['otm'].values[0] * 10000))
+                tmpstr += f"\n认沽:{put['code'].values[0]}_{put['name'].values[0]}_{put['close'].values[0]:.4f}=itm{int(put['itm'].values[0] * 10000)}+{int(put['otm'].values[0] * 10000)}"
+
+            png_dict[etf] = tmpstr
+
+        return png_dict
+
+
 if __name__ == '__main__':
 
-
+    start = time.time()
     tdx_hosts = [('招商深圳云', '39.108.28.83', 7709), ('招商深圳云2', '109.244.69.145', 7709),
      ('招商北京云', '39.105.251.234', 7709), ('招商北京云2', '120.53.204.206', 7709),
      ('招商北京云3', '109.244.7.166', 7709), ('招商广州云', '111.230.189.225', 7709),
@@ -639,13 +718,24 @@ if __name__ == '__main__':
      ('招商北京云', '182.92.255.107', 7727), ('招商北京云2', '140.143.179.226', 7727),
      ('招商上海云', '47.100.132.106', 7727), ('招商上海云2', '212.64.116.126', 7727)]
 
+    fn_opt = r"D:\stockProg\win2023\output\options\沪深期权清单_20251016.csv"
+    etf_list = [ '科创50','沪深300','中证500','创业板50' ]
+    df_filedata = pd.read_csv(fn_opt, dtype={'code': str,'ETFcode':str}, encoding='gbk')
+
 
     mytdx =mytdxData(tdx_hosts, tdx_exhosts)
+    png_dict = mytdx.getTradeOptions(etf_list,df_filedata)
+    print(f'png_dict: {png_dict}')
 
-    ttt = mytdx.get_close_list(['10008885','510300','510500'])
-    df1 = mytdx.get_kline_data('000001', backset=0, klines=200, period=9)
 
-    mytdx.reconnect()
+    # option_list = mytdx.getActiveOptions()
+    # print(f'option_list shape: {option_list.shape}')
+
+    # ttt = mytdx.get_close_list(option_list['code'].tolist())
+    # ttt = mytdx.get_close_list(['10008885','510300','510500'])
+    # df1 = mytdx.get_kline_data('000001', backset=0, klines=200, period=9)
+
+    # mytdx.reconnect()
     mytdx.close()
 
-    print('test done!')
+    print(f'test done in {time.time()-start}s')

@@ -18,6 +18,9 @@ class ETFDataFetcher:
         self.factor = factor + [1.00]
         self.ccb_range = {}
         self.ccb_pctChg = {}
+        self.bkzjlx_data_dict = dict.fromkeys(list(bk_dict.keys())+['dapan'], pd.DataFrame())
+        self.bkzjlx_time_dict = dict.fromkeys(list(bk_dict.keys())+['dapan'], None)
+
         for k,v in self.etf_ccb_dict.items():
             ccb_temp = self.tdx_data.get_kline_data(v, backset=0, klines=200, period=9)
             self.ccb_range[f'{k}_max'] = ccb_temp['close'].max()
@@ -67,38 +70,7 @@ class ETFDataFetcher:
         df_single['datetime'] = df_single['datetime'].apply(lambda x: x.replace('13:00', '11:30'))
         return df_single
 
-    def fetch_bk_zjlx_rt(self, bkcode: str) -> pd.DataFrame:
-        url = f'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.{bkcode}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_={int(time.time())}'
-        # res = requests.get(url, proxies={})
 
-        try:
-            res = self.safe_get_request(url)
-            data1 = json.loads(res.text[42:-2])['data']['klines']
-        except Exception:
-            print(f'fetch_bk_zjlx_rt {bkcode} data error')
-            return pd.DataFrame({'datetime': ['2000-01-01'], 'boss': [0]})
-        min_df = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
-        min_df = min_df[['datetime', 'boss']]
-        min_df['boss'] = min_df['boss'].astype(float) / 1e8
-        return min_df
-
-    def get_BK_Zjlx(self,bkcode):
-
-        url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=90.' + bkcode + \
-              '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=jQuery112406142175621622367_1615545163205&_=1615545163206'
-        # res = requests.get(url, proxies={})
-        try:
-            res = self.safe_get_request(url)
-            data1 = json.loads(res.text[42:-2])['data']['klines']
-        except:
-            print(f'get_BK_Zjlx {bkcode} data error')
-            return pd.DataFrame({'datetime': ['2000-01-01'], 'boss': [0]})
-        min = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
-        min.drop(labels=['small', 'med', 'big', 'huge'], axis=1, inplace=True)
-        # min['time'] = min['time'].astype('datetime64[ns]')
-        min['boss'] = min['boss'].astype('float') / 100000000
-
-        return min
     def get_Single_CCB_Data(self, name, backset=0, klines=500, period=8):
 
         code = self.etf_dict2[name]
@@ -140,24 +112,6 @@ class ETFDataFetcher:
 
         return data
 
-    def MINgetZjlxDP(self):
-        url = 'http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=1.000001&secid2=0.399001&' + \
-              'fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63&' + \
-              'ut=b2884a393a59ad64002292a3e90d46a5&cb=jQuery18308174687833149541_1607783437004&_=1607783437202'
-        try:
-            res = self.safe_get_request(url)
-            data1 = json.loads(res.text[41:-2])['data']['klines']
-        except:
-            print('MINgetZjlxDP error')
-            return pd.DataFrame()
-        min = pd.DataFrame([i.split(',') for i in data1], columns=['datetime', 'boss', 'small', 'med', 'big', 'huge'])
-        min.drop(labels=['small', 'med', 'big', 'huge'], axis=1, inplace=True)
-        # min['datetime'] = min['datetime'].astype('datetime64[ns]')
-        min['boss'] = min['boss'].astype('float')
-        min['net'] = min['boss'] - min['boss'].shift(1)
-        min['bossma5'] = min['boss'].rolling(5).mean()
-
-        return min
 
     def MINgetDPindex(self):
 
@@ -215,7 +169,7 @@ class ETFDataFetcher:
         return data, preclose
     def get_DP_data(self):
 
-        dp_zjlx = self.MINgetZjlxDP()
+        dp_zjlx = self.bkzjlx_data_dict['dapan']
 
         dp_zjlx['datetime'] = dp_zjlx['datetime'].apply(lambda x: x.replace('13:00', '11:30'))
 
@@ -229,10 +183,6 @@ class ETFDataFetcher:
 
     def get_ETF_data(self):
 
-        # periodkey = '1分钟k线'
-        # period = 8
-        # klines= 500
-
         df_all = pd.DataFrame()
 
         for k,v in self.etf_dict2.items():
@@ -243,7 +193,8 @@ class ETFDataFetcher:
                 return pd.DataFrame()
 
             self.ccb_range[f'{k}_CP'] =  (df_single['ccb'].values[-1]- self.ccb_range[f'{k}_min'])/(self.ccb_range[f'{k}_max']- self.ccb_range[f'{k}_min'])
-            df_BKzjlx = self.get_BK_Zjlx(self.etf_bk_dict[k])
+            # df_BKzjlx = self.get_BK_Zjlx(self.etf_bk_dict[k])
+            df_BKzjlx = self.bkzjlx_data_dict[k]
             df_single = pd.merge(df_single, df_BKzjlx[['datetime','boss']], on='datetime',how='left')
 
             tmp = df_single[df_single['datetime'].str.contains('15:00')]
