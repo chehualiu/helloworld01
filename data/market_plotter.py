@@ -83,7 +83,7 @@ class MarketPlotter:
         ax0e.set_ylim(-10, 10)
         ax0e.set_yticks([])
 
-        axes[0][0].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.dp_boss:.0f}亿   {timetitle}',
+        axes[0][0].text(0.5, 1.02, f'主力(蓝线):{etf_fetcher.bkzjlx_data_dict["dapan"]["boss"].dropna().values[-1]:.0f}亿   {timetitle}',
                         horizontalalignment='center', transform=axes[0][0].transAxes, fontsize=12, fontweight='bold',
                         color='black')
 
