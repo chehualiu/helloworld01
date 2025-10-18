@@ -239,9 +239,9 @@ def extract_cookies_from_db(db_path, domain, key):
                     pass
 
                 # 询问用户是否要关闭Chrome
-                response = input(
-                    "无法访问Cookies文件，Chrome浏览器可能正在运行。是否自动关闭Chrome浏览器？(y/n): ").strip().lower()
-                if response == 'y':
+                # response = input(
+                #     "无法访问Cookies文件，Chrome浏览器可能正在运行。是否自动关闭Chrome浏览器？(y/n): ").strip().lower()
+                if True:
                     print("正在关闭Chrome浏览器...")
 
                     if has_psutil:
