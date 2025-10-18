@@ -7,6 +7,7 @@ from data.etf_fetcher import ETFDataFetcher
 from data.market_plotter import MarketPlotter
 from utils.mytdx_cls import mytdxData
 from utils.zjlx_min_maintain_20251015 import get_BK_Zjlx
+from utils.get_cookie import get_eastmoney_cookie
 
 
 class OptionMonitor:
@@ -24,6 +25,7 @@ class OptionMonitor:
         self.cookie = self.config['cookie']
         self.data = pd.DataFrame()
         self.pushurl = self.config['pushmessage']['url']
+        self.cookieUpdateTime = None
 
 
     def is_trading_time(self):
@@ -46,6 +48,18 @@ class OptionMonitor:
             timetiklast = self.etf_fetcher.bkzjlx_time_dict[bk]
             if timetiklast is None or (time.time() - timetiklast) > emzjlx_frequency:
                 timetik, df_dpzjlx_tmp = get_BK_Zjlx(bkcode, cookie)
+
+                should_update_cookie = self.cookieUpdateTime is None or (
+                            time.time() - self.cookieUpdateTime) > 60
+                if len(df_dpzjlx_tmp) == 0 and should_update_cookie:
+                    tmp = get_eastmoney_cookie()
+                    if len(tmp)>10:
+                        self.cookie = tmp
+                        self.cookieUpdateTime = time.time()
+                        print(f'{time.strftime("%H:%M:%S", time.localtime())} cookie updated')
+                    else:
+                        print(f'{time.strftime("%H:%M:%S", time.localtime())} cookie update failed')
+
                 if len(df_dpzjlx_tmp) > 0:
                     self.etf_fetcher.bkzjlx_time_dict[bk] = timetik
                     self.etf_fetcher.bkzjlx_data_dict[bk] = df_dpzjlx_tmp
@@ -115,3 +129,4 @@ class OptionMonitor:
             msg = '大盘主力资金下穿10分钟均线，1min下跌信号'
             msgURL = f'{self.pushurl}1min下跌信号&desp={msg}'
             requests.get(msgURL)
+
