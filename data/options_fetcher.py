@@ -31,7 +31,6 @@ class OptionsDataFetcher:
             "Cookie": cookie if cookie is not None else "qgqp_b_id=435b18200eebe2cbb5bdd3b3af2db1b1; intellpositionL=522px; intellpositionT=1399.22px; em_hq_fls=js; pgv_pvi=6852699136; st_pvi=73734391542044; st_sp=2020-07-27%2010%3A10%3A43; st_inirUrl=http%3A%2F%2Fdata.eastmoney.com%2Fhsgt%2Findex.html",
             "Host": "push2.eastmoney.com",
             "Referer": "https://data.eastmoney.com/other/valueAnal.html",
-
         }
 
         field_map0 = {'f12': 'code', 'f14': 'name', 'f301': '到期日', 'f331': 'ETFcode', 'f333': 'ETFname',
@@ -161,7 +160,7 @@ class OptionsDataFetcher:
             modified_datetime = datetime.fromtimestamp(modified_timestamp)
             time_delta = current_datetime - modified_datetime
             gap_seconds = time_delta.days * 24 * 3600 + time_delta.seconds
-            if gap_seconds < 1800:
+            if gap_seconds < float(filter_dict['opt_screen_frequency']):  #1800:
                 print(f'{datetime.now().strftime("%m%d_%H:%M:%S")} reusing option file')
                 data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
             else:
@@ -169,7 +168,7 @@ class OptionsDataFetcher:
                     data = self.get_all_options_v3(cookie=cookie)
                     print(f'{datetime.now().strftime("%m%d_%H:%M:%S")} Try New option file')
                     if len(data)<=900:
-                        print(f'{datetime.now().strftime("%m%d_%H:%M:%S")} new data<900, reusing option file')
+                        print(f'{datetime.now().strftime("%m%d_%H:%M:%S")} new data rows {len(data)}, reusing option file')
                         data = pd.read_csv(opt_fn, encoding='gbk', dtype={'ETFcode': str, 'code': str})
                     else:
                         data.to_csv(opt_fn, encoding='gbk', index=False, float_format='%.4f')

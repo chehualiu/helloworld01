@@ -43,6 +43,7 @@ def load_config(config_file='monitor_v2.8.cfg'):
         'bkzjlx_url': dict(config.items('em_urls'))['bkzjlx'],
         'emzjlx_frequency': int(dict(config.items('em_urls'))['emzjlx_frequency']),
         'cookie': dict(config.items('em_urls'))['cookie']
+
     }
 
     return parsed
